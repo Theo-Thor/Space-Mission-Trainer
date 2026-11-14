@@ -89,9 +89,13 @@ async function main() {
     await send('Runtime.enable'); await send('Page.enable');
     await send('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});
     await send('Page.addScriptToEvaluateOnNewDocument',{source:`
-      window.__artCheck={seen:[],last:'',blends:0,walkFrames:{}};
+      window.__artCheck={seen:[],last:'',blends:0,walkFrames:{},environment:[]};
       const original=CanvasRenderingContext2D.prototype.drawImage;
       CanvasRenderingContext2D.prototype.drawImage=function(source,...args){
+        if(source instanceof HTMLImageElement && source.src.includes('/assets/facility/')) {
+          const name=source.src.split('/').pop();
+          if(!window.__artCheck.environment.includes(name))window.__artCheck.environment.push(name);
+        }
         if(source instanceof HTMLImageElement && source.src.includes('/astronaut-v2/')) {
           const name=source.src.split('/').pop();
           if(name.endsWith('-walk.png')) {
@@ -109,6 +113,17 @@ async function main() {
     const url=`http://127.0.0.1:${server.address().port}/`;
     await send('Page.navigate',{url});
     await startGame();
+    for(const [room,x,y] of [['reception',1074,1440],['lobby',1074,844],['briefing',1074,320],['communications',290,850],['suit-bay',1885,850],['departure',2415,930]]) {
+      await evaluate(`window.__SELENE__.teleport(${x},${y})`);await delay(1500);
+      await screenshot('environment-'+room);
+    }
+    assert.equal((await evaluate('window.__artCheck.environment')).length,12,'Environment assets did not all render');
+    const frameTiming=await evaluate(`new Promise(resolve=>{
+      const times=[];let last=performance.now();
+      function sample(now){times.push(now-last);last=now;if(times.length<60)requestAnimationFrame(sample);else{times.sort((a,b)=>a-b);resolve({median:times[30],p95:times[57]});}}
+      requestAnimationFrame(sample);
+    })`);
+    console.log('Frame timing (ms): '+JSON.stringify(frameTiming));
     await evaluate('window.__SELENE__.teleport(1074,1440)');
     const directions=[['w','up','back'],['s','down','front'],['a','left','left'],['d','right','right']];
     async function checkDirections(outfit) {
@@ -166,7 +181,7 @@ async function main() {
     assert((await snapshot()).y>1460,'Missing image prevented movement');
     assert.equal(await evaluate('window.__artCheck.seen.includes("uniform-front.png")'),false);
     assert.equal(errors.length,0,JSON.stringify(errors));
-    console.log('PASS: all eight rendered views, keyboard movement/stopping, wall and door collisions, outfit crossfade, radio, NPC dialogues, Riley path, chapter completion and missing-image fallback.');
+    console.log('PASS: twelve environment assets, six room captures, all eight character views and 32 walking frames, keyboard movement/stopping, wall and door collisions, outfit crossfade, radio, NPC dialogues, Riley path, chapter completion and missing-image fallback.');
     console.log('Screenshots: '+output);
   } finally {
     if(send) { try { await send('Browser.close'); } catch {} }

@@ -17,6 +17,7 @@ A game engine was not added. The chapter is one small map, and the interface is 
 - `src/content/world.ts` holds rooms, people, and furniture.
 - `src/render/draw.ts` draws the facility and characters.
 - `src/render/player-art.ts` draws the approved directional player PNGs and the outfit transition; missing art falls back to shapes.
+- `src/render/facility-art.ts` renders the illustrated equipment kit, cached wall/floor surfaces and doorway frames. See `public/assets/facility/README.md` for asset packaging and extension notes.
 - `src/ui/surface.ts` updates the HTML panels.
 
 ## Progress

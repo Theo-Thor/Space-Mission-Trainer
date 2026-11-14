@@ -1,5 +1,6 @@
 import { doorPanels } from "../systems/doors";
 import { drawPlayerArt } from "./player-art";
+import { drawFacilityShell, drawFacilityProp, drawFacilityThreshold } from "./facility-art";
 import type { Dir, Look } from "../types";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
 
@@ -101,10 +102,19 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.translate(-paint.cameraX * paint.zoom, -paint.cameraY * paint.zoom);
   ctx.scale(paint.zoom, paint.zoom);
 
-  for (const room of rooms) drawRoom(ctx, room, paint);
-  for (const door of doors) drawDoor(ctx, door, paint.doorOpenness[door.id]);
+  const right = paint.cameraX + paint.viewW / paint.zoom;
+  const bottom = paint.cameraY + paint.viewH / paint.zoom;
+  const visible = (x: number, y: number, w: number, h: number): boolean =>
+    x + w >= paint.cameraX && y + h >= paint.cameraY && x <= right && y <= bottom;
+  const visibleRooms = rooms.filter(room => visible(room.x, room.y, room.w, room.h));
+  for (const room of visibleRooms) drawRoom(ctx, room, paint);
+  for (const door of doors) {
+    if (visible(door.x - 8, door.y - 8, door.w + 16, door.h + 16) || visible(door.signAt.x - 150, door.signAt.y - 20, 300, 40)) {
+      drawDoor(ctx, door, paint.doorOpenness[door.id]);
+    }
+  }
   drawGuides(ctx, paint.time);
-  for (const room of rooms) drawRoomDetails(ctx, room, paint.time);
+  for (const room of visibleRooms) drawRoomDetails(ctx, room, paint.time);
 
   if (paint.highlight) {
     const pulse = 0.35 + Math.sin(paint.time * 4) * 0.15;
@@ -117,9 +127,11 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
 
   const layers: { z: number; draw: () => void }[] = [];
   for (const prop of props) {
+    if (!visible(prop.x - 60, prop.y - 80, prop.w + 120, prop.h + 100)) continue;
     layers.push({ z: prop.y + prop.h, draw: () => drawProp(ctx, prop, paint) });
   }
   for (const actor of [...paint.actors, paint.player]) {
+    if (!visible(actor.x - 40, actor.y - 90, 80, 110)) continue;
     layers.push({ z: actor.y, draw: () => drawActor(ctx, actor, paint.time) });
   }
   layers.sort((a, b) => a.z - b.z);
@@ -132,10 +144,12 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
 }
 
 function drawRoom(ctx: CanvasRenderingContext2D, room: Room, paint: Paint): void {
+  if (!drawFacilityShell(ctx, room)) {
   fillRound(ctx, room.x, room.y, room.w, room.h, 22, "#172433");
   fillRound(ctx, room.x + 12, room.y + 12, room.w - 24, room.h - 24, 16, "#243246");
   fillRound(ctx, room.x + 24, room.y + 24, room.w - 48, room.h - 48, 12, room.floor);
   drawFloor(ctx, room);
+  }
   const cx = room.x + room.w * 0.5;
   const cy = room.y + room.h * 0.42;
   const glow = ctx.createRadialGradient(cx, cy, 30, cx, cy, room.w * 0.48);
@@ -184,28 +198,18 @@ function drawPlaque(ctx: CanvasRenderingContext2D, room: Room): void {
   ctx.font = "700 13px Segoe UI, sans-serif";
   const width = Math.min(room.w - 80, ctx.measureText(label).width + 36);
   const x = room.x + 40;
-  const y = room.y + 36;
-  fillRound(ctx, x, y, width, 26, 13, "rgba(16, 27, 46, 0.82)");
+  // Keep wayfinding clear of the raised monitors and lockers along the north walls.
+  const y = room.y + room.h - 58;
+  fillRound(ctx, x, y, width, 26, 3, "rgba(16, 27, 46, 0.82)");
+  ctx.fillStyle = room.accent;
+  ctx.fillRect(x, y, 3, 26);
   ctx.fillStyle = "#E8EFF5";
   ctx.textAlign = "center";
   ctx.fillText(label, x + width / 2, y + 18);
 }
 
 function drawDoor(ctx: CanvasRenderingContext2D, door: Door, openness?: number): void {
-  ctx.fillStyle = "#3E5674";
-  ctx.fillRect(door.x, door.y, door.w, door.h);
-  ctx.fillStyle = door.accent;
-  if (door.axis === "h") {
-    ctx.fillRect(door.x + 10, door.y + door.h / 2 - 2, door.w - 20, 4);
-    ctx.fillStyle = "rgba(232, 239, 245, 0.4)";
-    ctx.fillRect(door.x - 2, door.y - 4, 10, door.h + 8);
-    ctx.fillRect(door.x + door.w - 8, door.y - 4, 10, door.h + 8);
-  } else {
-    ctx.fillRect(door.x + door.w / 2 - 2, door.y + 10, 4, door.h - 20);
-    ctx.fillStyle = "rgba(232, 239, 245, 0.4)";
-    ctx.fillRect(door.x - 4, door.y - 2, door.w + 8, 10);
-    ctx.fillRect(door.x - 4, door.y + door.h - 8, door.w + 8, 10);
-  }
+  drawFacilityThreshold(ctx, door);
   ctx.font = "700 12px Segoe UI, sans-serif";
   ctx.textAlign = "center";
   ctx.fillStyle = door.accent;
@@ -215,6 +219,10 @@ function drawDoor(ctx: CanvasRenderingContext2D, door: Door, openness?: number):
       ctx.strokeStyle = '#718599';
       ctx.lineWidth = 1;
       ctx.strokeRect(panel.x+1, panel.y+1, Math.max(0,panel.w-2), Math.max(0,panel.h-2));
+      ctx.fillStyle = "#9bacb9";
+      ctx.fillRect(panel.x + 2, panel.y + 2, Math.max(0, panel.w - 4), 2);
+      ctx.fillStyle = "#203449";
+      ctx.fillRect(panel.x + 2, panel.y + panel.h - 5, Math.max(0, panel.w - 4), 3);
     }
     ctx.fillStyle = openness >= 0.99 ? '#55D5E9' : '#F0A84B';
     ctx.fillRect(door.x+5,door.y+5,5,5);
@@ -256,7 +264,7 @@ function drawReception(ctx: CanvasRenderingContext2D, room: Room): void {
   fillRound(ctx, doorX, doorY, 128, 16, 4, "#101820");
   ctx.fillStyle = "#55D5E9";
   ctx.fillRect(doorX + 62, doorY, 4, 16);
-  const markX = room.x + 130;
+  const markX = room.x + room.w * 0.52;
   const markY = room.y + 96;
   ctx.strokeStyle = "rgba(85, 213, 233, 0.85)";
   ctx.lineWidth = 3;
@@ -378,6 +386,7 @@ function roomGlow(id: string): string {
 }
 
 function drawProp(ctx: CanvasRenderingContext2D, prop: PropDef, paint: Paint): void {
+  if (drawFacilityProp(ctx, prop, paint)) return;
   if (prop.kind === "seat") {
     fillRound(ctx, prop.x, prop.y, prop.w, prop.h, 8, "#1C3044");
     fillRound(ctx, prop.x + 5, prop.y + 4, prop.w - 10, prop.h - 8, 6, "#3E5674");
