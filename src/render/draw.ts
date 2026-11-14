@@ -1,5 +1,6 @@
 import { doorPanels } from "../systems/doors";
 import { drawPlayerArt } from "./player-art";
+import { drawRileyArt } from "./riley-art";
 import { drawShipInterior } from "./ship-art";
 import { drawFacilityShell, drawFacilityProp, drawFacilityThreshold } from "./facility-art";
 import type { Dir, Look } from "../types";
@@ -590,6 +591,7 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: PropDef, paint: Paint): v
 
 function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: number): void {
   if (actor.look === "player" && drawPlayerArt(ctx, actor, time)) return;
+  if (actor.look === "riley" && drawRileyArt(ctx, actor)) return;
   const palette = actor.look === "player" ? mixPalette(UNIFORM, SUIT, actor.suitBlend) : LOOKS[actor.look];
   const suited = actor.look === "riley" || (actor.look === "player" && actor.suitBlend > 0.55);
   const gait = actor.gait ?? (actor.walking ? 1 : 0);
