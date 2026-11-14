@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Project Selene — Chapter 1</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23101B2E'/%3E%3Ccircle cx='18' cy='16' r='7' fill='%23E8EFF5'/%3E%3Ccircle cx='14' cy='16' r='7' fill='%23101B2E'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <canvas id="view" width="1280" height="720"></canvas>
+
+    <div id="fade"></div>
+
+    <section id="cinematic" hidden>
+      <video id="cine" muted playsinline preload="auto"></video>
+      <button id="skip-cine" type="button">Skip</button>
+    </section>
+
+    <section id="registration">
+      <form id="reg-form">
+        <p class="brand">PROJECT SELENE</p>
+        <p class="brand-sub">LUNAR EXPLORATION PROGRAM</p>
+        <h1>CREW REGISTRATION</h1>
+        <label for="name-input">Astronaut name</label>
+        <input id="name-input" name="astronaut" type="text" maxlength="24" autocomplete="nickname" placeholder="Enter your astronaut's name" />
+        <p id="name-error" class="error" hidden>Please enter your astronaut's name.</p>
+        <button id="confirm" type="submit">CONFIRM IDENTITY</button>
+        <p id="verified" class="verified" hidden>IDENTITY VERIFIED</p>
+        <p id="welcome" hidden></p>
+        <p class="footer">MISSION PREPARATION FACILITY — EARTH</p>
+      </form>
+    </section>
+
+    <div id="hud" hidden>
+      <div id="left-stack">
+        <section id="objective" class="panel">
+          <span>CURRENT OBJECTIVE</span>
+          <strong id="objective-text"></strong>
+          <em id="location"></em>
+          <p id="radio-status" hidden></p>
+        </section>
+        <aside id="toast" class="panel" hidden>
+          <p id="toast-title"></p>
+          <p id="toast-body"></p>
+          <p id="toast-detail" hidden></p>
+        </aside>
+      </div>
+      <div id="hint">
+        <p>WASD / ARROW KEYS — MOVE</p>
+        <p>E — INTERACT</p>
+      </div>
+      <div id="banner">
+        <p>SELENE MISSION PREPARATION FACILITY</p>
+        <p>EARTH — PRE-LAUNCH OPERATIONS</p>
+      </div>
+      <p id="prompt" hidden></p>
+      <button id="mute" type="button">Sound on</button>
+      <button id="restart" type="button">Restart Chapter</button>
+    </div>
+
+    <aside id="radio" hidden>
+      <p class="kicker"><span class="dot"></span>INCOMING TRANSMISSION</p>
+      <p id="radio-sender"></p>
+      <p id="radio-text"></p>
+      <div class="wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    </aside>
+
+    <section id="dialogue" hidden>
+      <p id="speaker"></p>
+      <p id="line" aria-live="polite"></p>
+      <button id="advance" type="button" hidden aria-label="Continue">▼</button>
+    </section>
+
+    <section id="inspect" class="panel" hidden>
+      <h2 id="inspect-title"></h2>
+      <p id="inspect-body"></p>
+      <p id="inspect-detail"></p>
+      <button id="inspect-close" type="button">Close</button>
+    </section>
+
+    <section id="suit" class="panel" hidden>
+      <h2>SPACESUIT PREPARATION</h2>
+      <ol>
+        <li id="suit-step-1">SUIT SECURED</li>
+        <li id="suit-step-2">COMMUNICATIONS LINKED</li>
+        <li id="suit-step-3">EQUIPMENT CHECK COMPLETE</li>
+      </ol>
+      <p id="suit-ready" hidden>READY</p>
+    </section>
+
+    <section id="complete" hidden>
+      <p class="brand">PROJECT SELENE</p>
+      <h1>CHAPTER 1 COMPLETE</h1>
+      <p class="brand-sub">THE JOURNEY BEGINS</p>
+      <p class="soon">LAUNCH SEQUENCE — COMING SOON</p>
+      <button id="replay" type="button">REPLAY CHAPTER</button>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

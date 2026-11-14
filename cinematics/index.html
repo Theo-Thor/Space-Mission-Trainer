@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --ground: #101b2e;
+        --ink: #e8eff5;
+        --cyan: #55d5e9;
+        --amber: #f0a84b;
+        --muted: #718398;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ground);
+        font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      }
+      #root { position: relative; width: 1920px; height: 1080px; }
+      .clip { position: absolute; inset: 0; }
+      .star {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: #e8eff5;
+        opacity: 0.35;
+      }
+      .moon {
+        position: absolute;
+        left: 1180px;
+        top: 250px;
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 38% 38%, #f7fbff 0%, #d5dde6 42%, #8b97a6 78%, #5c6b7c 100%);
+        box-shadow: inset -28px -18px 0 rgba(16, 27, 46, 0.28);
+      }
+      .crater {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(60, 74, 90, 0.28);
+      }
+      #titles {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-left: 160px;
+      }
+      #chapter, #subtitle, #rule { opacity: 0; }
+      #kicker { opacity: 1; }
+      #kicker {
+        color: var(--cyan);
+        font-size: 28px;
+        letter-spacing: 0.42em;
+        font-weight: 650;
+      }
+      #chapter {
+        margin-top: 18px;
+        color: var(--ink);
+        font-size: 132px;
+        line-height: 0.92;
+        letter-spacing: -0.04em;
+        font-weight: 700;
+      }
+      #rule {
+        width: 280px;
+        height: 4px;
+        margin-top: 28px;
+        background: var(--amber);
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
+      #subtitle {
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 32px;
+        letter-spacing: 0.28em;
+        font-weight: 650;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="8"
+      data-fps="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <div id="sky" class="clip" data-start="0" data-duration="8" data-track-index="0">
+        <div class="moon" id="moon">
+          <div class="crater" style="width: 46px; height: 46px; left: 70px; top: 80px"></div>
+          <div class="crater" style="width: 22px; height: 22px; left: 150px; top: 60px"></div>
+          <div class="crater" style="width: 30px; height: 30px; left: 120px; top: 150px"></div>
+        </div>
+        <div class="star" style="left: 120px; top: 140px"></div>
+        <div class="star" style="left: 260px; top: 320px"></div>
+        <div class="star" style="left: 420px; top: 90px"></div>
+        <div class="star" style="left: 680px; top: 210px"></div>
+        <div class="star" style="left: 860px; top: 120px"></div>
+        <div class="star" style="left: 980px; top: 420px"></div>
+        <div class="star" style="left: 1540px; top: 160px"></div>
+        <div class="star" style="left: 1720px; top: 300px"></div>
+        <div class="star" style="left: 1480px; top: 640px"></div>
+        <div class="star" style="left: 240px; top: 760px"></div>
+        <div class="star" style="left: 560px; top: 860px"></div>
+        <div class="star" style="left: 1100px; top: 800px"></div>
+      </div>
+      <div id="titles" class="clip" data-start="0" data-duration="8" data-track-index="1">
+        <p id="kicker">PROJECT SELENE</p>
+        <h1 id="chapter">CHAPTER 1</h1>
+        <div id="rule"></div>
+        <p id="subtitle">BEFORE THE LAUNCH</p>
+      </div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#kicker", { y: 12 }, { y: 0, duration: 0.7, ease: "power2.out" }, 0);
+      tl.fromTo("#chapter", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.85, ease: "power2.out" }, 1.05);
+      tl.fromTo("#rule", { opacity: 0, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.7, ease: "power2.out" }, 1.9);
+      tl.fromTo("#subtitle", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 2.35);
+      tl.to("#moon", { x: -30, duration: 8, ease: "none" }, 0);
+      tl.to(["#kicker", "#chapter", "#subtitle", "#rule"], { opacity: 0, y: -12, duration: 0.7, ease: "power2.in" }, 6.7);
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
