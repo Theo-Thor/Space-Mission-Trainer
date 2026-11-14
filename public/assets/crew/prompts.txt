@@ -1,0 +1,21 @@
+Project Selene crew idle views. Package with tests/package-crew-art.ps1.
+Each finished view is 320 by 512, transparent, feet at (160, 488), order front, back, left, right.
+Regenerate one character as a horizontal sheet of those four views, then run the packager.
+The sheet may be a JPEG. Use a solid white background. Do not use black behind dark clothing.
+Labels are removed during packaging when they are separate from the figure.
+
+Shared direction: stylized original 2D game character turnaround for PROJECT SELENE, matching public/assets/astronaut-v2/uniform-front.png. Elevated adventure-game camera about 30 degrees above horizontal, slightly cartoon proportions about 3.8 heads tall, polished cel shading, elegant dark navy contour, no ground shadow, no text, no scenery. Exactly four full-body views of the same person: FRONT, BACK, LEFT, RIGHT. Neutral idle, arms slightly away from the torso, feet on one baseline. Navy and slate clothing, cyan piping, small orange crescent patch with no lettering. Finished indie game sprite art, not pixel art, not photoreal, not 3D.
+
+Val Ortiz: warm light skin, dark brown hair in a low twist, friendly expression. Royal-blue reception jacket (#2E5A98), white collar accent, cyan piping, navy trousers, dark boots.
+
+Dr. Maya Chen: light-medium skin, black hair in a neat bun, calm expression. Slate-gray coordinator jacket (#3C5168), cyan trim, dark trousers, dark boots.
+
+Dr. Samir Patel: medium brown skin, short black hair, neat short beard. Teal science jacket (#2F5552), pale cyan trim, dark trousers, dark boots.
+
+Leo Voss: light skin, messy auburn hair, headset around the neck. Dark charcoal coverall (#1B2430) clearly darker than the white background but not pure black, cyan trim, orange shoulder tabs, dark gray boots with orange laces. Full legs and boots in every view.
+
+Nia Brooks: deep brown skin, short black twists. Pale gray technician coat (#D5DEE6), amber-orange shoulder accents, dark trousers, dark boots.
+
+Crew: unnamed man, simpler than the named staff, light skin, short brown hair. Plain blue-gray jumpsuit (#3E5674), small amber shoulder tab, dark boots.
+
+Crew 2: unnamed woman, simpler than the named staff, medium skin, dark hair pulled back. Plain green-gray jumpsuit (#3A4A44), small teal shoulder tab, dark boots.

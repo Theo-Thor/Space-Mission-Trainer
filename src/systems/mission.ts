@@ -21,11 +21,11 @@ export interface MissionSignals {
 }
 
 export class Mission {
-  phase: Phase = "NEED_BRIEFING";
+  phase: Phase = "NEED_SUIT_EQUIPPING";
   playerName = "";
   briefingCompleted = false;
-  radioAcquired = false;
-  radioActive = false;
+  radioAcquired = true;
+  radioActive = true;
   suitEquipped = false;
   companionMet = false;
   companionAtHatch = false;
@@ -36,7 +36,7 @@ export class Mission {
   seated = false;
   valTalked = false;
   patelTalked = false;
-  objective: string = OBJECTIVES.briefing;
+  objective: string = OBJECTIVES.suitEquip;
   private boardingStarted = false;
 
   constructor(private readonly signals: MissionSignals) {}
@@ -94,9 +94,6 @@ export class Mission {
         if (this.suitEquipped) {
           return { kind: "toast", title: "SPACESUIT ALREADY EQUIPPED", body: "Your equipment checks are already complete." };
         }
-        if (this.phase !== "NEED_SUIT_EQUIPPING") {
-          return { kind: "toast", title: "SUIT PREPARATION", body: "Technician Brooks has to clear you before the station will start." };
-        }
         return { kind: "equip" };
       case "riley":
         if (this.aboard && this.seated) return { kind: "dialogue", id: "RILEY_STANDBY" };
@@ -108,16 +105,9 @@ export class Mission {
         }
         return { kind: "toast", title: "CREWMATE", body: "Finish your preparation before meeting Riley." };
       case "hatch":
-        if (this.chapterCompleted) return { kind: "toast", title: "BOARDING", body: "You are already aboard." };
-        if (!this.briefingCompleted || !this.radioAcquired || !this.suitEquipped || !this.companionMet) {
-          return {
-            kind: "toast",
-            title: "BOARDING",
-            body: "Boarding authorization pending. Complete your preparation objectives.",
-          };
-        }
-        if (!this.companionAtHatch) {
-          return { kind: "toast", title: "BOARDING", body: "Your crewmate is approaching the boarding hatch." };
+        if (this.aboard || this.chapterCompleted) return { kind: "toast", title: "BOARDING", body: "You are already aboard." };
+        if (!this.suitEquipped) {
+          return { kind: "toast", title: "BOARDING", body: "Equip your spacesuit before boarding the spacecraft." };
         }
         return { kind: "dialogue", id: "FINAL_BOARDING" };
       case "moon":
@@ -177,7 +167,7 @@ export class Mission {
       this.signals.onRileyWalk();
       this.signals.onRadios(["R004"], 0.45);
     }
-    if (id === "FINAL_BOARDING" && !this.boardingStarted && this.phase === "NEED_BOARDING") {
+    if (id === "FINAL_BOARDING" && !this.boardingStarted && this.suitEquipped && !this.aboard) {
       this.boardingStarted = true;
       this.objective = OBJECTIVES.board;
       this.signals.onObjective(this.objective);
@@ -198,9 +188,16 @@ export class Mission {
   finishSuit(): void {
     if (this.suitEquipped) return;
     this.suitEquipped = true;
-    this.phase = "NEED_CREWMATE_MEETING";
     this.signals.onToast("SPACESUIT EQUIPPED", "COMMUNICATIONS CONNECTED");
-    this.advance(OBJECTIVES.crew);
+    const beforeCrew =
+      this.phase === "NEED_BRIEFING" ||
+      this.phase === "NEED_COMMUNICATIONS_BRIEFING" ||
+      this.phase === "NEED_RADIO_PICKUP" ||
+      this.phase === "NEED_SUIT_TECHNICIAN" ||
+      this.phase === "NEED_SUIT_EQUIPPING";
+    if (!beforeCrew) return;
+    this.phase = "NEED_BOARDING";
+    this.advance(OBJECTIVES.hatch);
     this.signals.onRadios(["R003"], 0.45);
   }
 

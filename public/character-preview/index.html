@@ -67,6 +67,10 @@
   <div class="native-wrap"><section id="native-uniform" class="grid native-grid" aria-label="Mission uniform at native resolution"></section></div>
   <div class="section-heading"><h2>02 / Spacesuit</h2><span>Native assets · 320 × 512 px each · click a view to open the PNG</span></div>
   <div class="native-wrap"><section id="native-spacesuit" class="grid native-grid" aria-label="Spacesuit at native resolution"></section></div>
+  <div class="section-heading"><h2>03 / Facility crew</h2><span>Idle views · 320 × 512 · same foot anchor as the player</span></div>
+  <p>Val Ortiz, Dr. Chen, Dr. Patel, Leo Voss, Nia Brooks, and the two facility crew. Each person has front, back, left, and right. A missing image leaves the simple shape in the facility.</p>
+  <section id="crew-small" class="grid" aria-label="Facility crew at game scale"></section>
+  <div class="native-wrap"><section id="crew-native" class="grid native-grid" aria-label="Facility crew at native resolution"></section></div>
   <div class="notes"><p>Short swept hair, tailored navy jacket, orange shoulder details and cyan trim.<br>Matching suit proportions, dark visor, articulated gloves and a compact life-support pack.</p><p><a href="../assets/astronaut-v2/source-sheet.png">Original model sheet</a> · <a href="../assets/astronaut-v2/manifest.json">Asset manifest</a> · <a href="../assets/astronaut-v2/README.md">Artwork notes</a></p></div>
 </main>
 <script>
@@ -112,10 +116,33 @@
       });
     }
   }
+  const crew = [['val','Val Ortiz'],['chen','Dr. Chen'],['patel','Dr. Patel'],['leo','Leo Voss'],['nia','Nia Brooks'],['crew','Crew'],['crew2','Crew']];
+  for (const size of ['small','native']) {
+    const section = document.getElementById(`crew-${size}`);
+    for (const [id, name] of crew) {
+      views.forEach((view, i) => {
+        const card = document.createElement('figure'); card.className = 'card';
+        const caption = document.createElement('figcaption');
+        caption.innerHTML = `${labels[i]}<span>${name.toUpperCase()}</span>`;
+        const stage = document.createElement('div'); stage.className = `stage ${size}`;
+        const img = new Image(); img.alt = `${name}, ${view} view`; img.width = 320; img.height = 512;
+        pending.push(new Promise(resolve => {
+          img.onload = () => resolve({ok:img.naturalWidth === 320 && img.naturalHeight === 512,file:img.src});
+          img.onerror = () => resolve({ok:false,file:img.src});
+        }));
+        img.src = `../assets/crew/${id}-${view}.png`;
+        if (size === 'native') { const link = document.createElement('a'); link.href=img.src; link.append(img); stage.append(link); }
+        else stage.append(img);
+        card.append(caption,stage); section.append(card);
+      });
+    }
+  }
   Promise.all(pending).then(results => {
-    const failed = results.filter(r=>!r.ok);
+    const files = new Map();
+    for (const result of results) files.set(result.file, files.has(result.file) ? files.get(result.file) && result.ok : result.ok);
+    const failed = [...files].filter(([, ok]) => !ok);
     const status = document.getElementById('status');
-    status.textContent = failed.length ? `Artwork load failed: ${failed.length} previews` : '8 / 8 assets loaded · both scales ready';
+    status.textContent = failed.length ? `Artwork load failed: ${failed.length} files` : `${files.size} / ${files.size} assets loaded · both scales ready`;
     document.body.dataset.loaded = failed.length ? 'error' : 'ready';
     if(failed.length) { status.style.color='#ff957f'; console.error(failed); }
   });
