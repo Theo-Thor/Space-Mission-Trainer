@@ -1,4 +1,6 @@
-import { actorDefs, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD } from "./content/world";
+import { CharacterAnimator } from "./systems/animation";
+import { AutomaticDoor, actorFootprint } from "./systems/doors";
+import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD } from "./content/world";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
@@ -68,6 +70,8 @@ export class Game {
   private readonly dialogue = new Dialogue();
   private readonly radio = new RadioQueue();
   private readonly keys = new Keys();
+  private readonly animator = new CharacterAnimator();
+  private readonly automaticDoors = doors.filter(d => d.id === "to-reception").map(d => new AutomaticDoor(d));
   private readonly areas = walkable();
   private readonly blocks = obstacles();
   private readonly actors: Actor[];
@@ -138,6 +142,7 @@ export class Game {
       interactive: false,
       radius: 0,
     };
+    for (const actor of [...this.actors, this.player]) this.animator.track(actor);
     this.mission = new Mission({
       onObjective: (text) => this.ui.setObjective(text),
       onToast: (title, body, detail) => this.ui.pushToast(title, body, detail),
@@ -189,6 +194,7 @@ export class Game {
   teleport(x: number, y: number): void {
     this.player.x = x;
     this.player.y = y;
+    this.animator.track(this.player);
   }
 
   debugInteract(id: string): void {
@@ -214,6 +220,9 @@ export class Game {
       line: this.dialogue.shown,
       rileyX: Math.round(riley.x),
       rileyY: Math.round(riley.y),
+      doors: this.automaticDoors.map(d => ({ id: d.definition.id, openness: d.openness })),
+      walking: this.player.walking,
+      facing: this.player.facing,
       suitBlend: this.suitBlend,
     };
   }
@@ -231,6 +240,7 @@ export class Game {
       if (target) this.handleInteract(target.id);
     }
 
+    for (const door of this.automaticDoors) door.update(dt, [this.player, ...this.actors].map(actorFootprint));
     const movingLocked = this.dialogue.isOpen || this.suitActive || this.boardActive;
     if (!movingLocked) this.movePlayer(dt);
     else this.player.walking = false;
@@ -244,9 +254,7 @@ export class Game {
     this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
     this.player.radioLight = this.mission.radioAcquired;
     this.player.label = "";
-    for (const actor of this.actors) {
-      if (!actor.walking) actor.walkPhase = 0;
-    }
+    for (const actor of [...this.actors, this.player]) this.animator.update(actor, dt);
     this.placeCamera(dt);
     this.ui.setLocation(roomAt(this.player.x, this.player.y).label);
     this.ui.setRadioStatus(this.radioLabel());
@@ -278,6 +286,7 @@ export class Game {
       radioTaken: this.mission.radioAcquired,
       suitReady: this.mission.suitEquipped,
       hatchOpen: this.hatchOpen,
+      doorOpenness: Object.fromEntries(this.automaticDoors.map(d => [d.definition.id, d.openness])),
       viewW: this.viewW,
       viewH: this.viewH,
     });
@@ -343,7 +352,7 @@ export class Game {
     } else if (!this.blocked(nextX, this.player.y)) this.player.x = nextX;
     else if (!this.blocked(this.player.x, nextY)) this.player.y = nextY;
     this.player.walking = true;
-    this.player.walkPhase += dt * 11;
+
   }
 
   private blocked(x: number, y: number): boolean {
@@ -357,7 +366,7 @@ export class Game {
     const inside = points.every(([px, py]) =>
       this.areas.some((area) => px >= area.x && py >= area.y && px <= area.x + area.w && py <= area.y + area.h),
     );
-    if (!inside) return true;
+    if (!inside || this.automaticDoors.some(door => door.blocks(box))) return true;
     return this.blocks.some(
       (block) => box.x < block.x + block.w && box.x + box.w > block.x && box.y < block.y + block.h && box.y + box.h > block.y,
     );
@@ -408,7 +417,7 @@ export class Game {
     if (!this.boardActive || this.mission.chapterCompleted) return;
     this.boardT += dt;
     this.player.walking = true;
-    this.player.walkPhase += dt * 11;
+
     stepToward(this.player, BOARD_TARGET.player.x, BOARD_TARGET.player.y, 150, dt);
     const fade = clamp((this.boardT - 1.15) / 0.75, 0, 1);
     this.ui.setFade(fade);
@@ -569,7 +578,7 @@ function stepToward(actor: Actor, x: number, y: number, speed: number, dt: numbe
   actor.x += (dx / dist) * speed * dt;
   actor.y += (dy / dist) * speed * dt;
   actor.walking = true;
-  actor.walkPhase += dt * 11;
+
   actor.facing = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
   return false;
 }

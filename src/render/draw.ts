@@ -1,3 +1,5 @@
+import { doorPanels } from "../systems/doors";
+import { drawPlayerArt } from "./player-art";
 import type { Dir, Look } from "../types";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
 
@@ -10,6 +12,8 @@ export interface PaintActor {
   label: string;
   walking: boolean;
   walkPhase: number;
+  gait?: number;
+  lean?: number;
   bob: number;
   suitBlend: number;
   radioLight: boolean;
@@ -27,6 +31,7 @@ export interface Paint {
   radioTaken: boolean;
   suitReady: boolean;
   hatchOpen: boolean;
+  doorOpenness: Record<string, number>;
   viewW: number;
   viewH: number;
 }
@@ -97,7 +102,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.scale(paint.zoom, paint.zoom);
 
   for (const room of rooms) drawRoom(ctx, room, paint);
-  for (const door of doors) drawDoor(ctx, door);
+  for (const door of doors) drawDoor(ctx, door, paint.doorOpenness[door.id]);
   drawGuides(ctx, paint.time);
   for (const room of rooms) drawRoomDetails(ctx, room, paint.time);
 
@@ -186,7 +191,7 @@ function drawPlaque(ctx: CanvasRenderingContext2D, room: Room): void {
   ctx.fillText(label, x + width / 2, y + 18);
 }
 
-function drawDoor(ctx: CanvasRenderingContext2D, door: Door): void {
+function drawDoor(ctx: CanvasRenderingContext2D, door: Door, openness?: number): void {
   ctx.fillStyle = "#3E5674";
   ctx.fillRect(door.x, door.y, door.w, door.h);
   ctx.fillStyle = door.accent;
@@ -203,6 +208,17 @@ function drawDoor(ctx: CanvasRenderingContext2D, door: Door): void {
   }
   ctx.font = "700 12px Segoe UI, sans-serif";
   ctx.textAlign = "center";
+  ctx.fillStyle = door.accent;
+  if (openness !== undefined) {
+    for (const panel of doorPanels(door, openness)) {
+      fillRound(ctx, panel.x, panel.y, panel.w, panel.h, 3, '#3A4F65');
+      ctx.strokeStyle = '#718599';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(panel.x+1, panel.y+1, Math.max(0,panel.w-2), Math.max(0,panel.h-2));
+    }
+    ctx.fillStyle = openness >= 0.99 ? '#55D5E9' : '#F0A84B';
+    ctx.fillRect(door.x+5,door.y+5,5,5);
+  }
   ctx.fillStyle = door.accent;
   ctx.fillText(door.sign, door.signAt.x, door.signAt.y);
   ctx.beginPath();
@@ -533,29 +549,36 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: PropDef, paint: Paint): v
 }
 
 function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: number): void {
+  if (actor.look === "player" && drawPlayerArt(ctx, actor, time)) return;
   const palette = actor.look === "player" ? mixPalette(UNIFORM, SUIT, actor.suitBlend) : LOOKS[actor.look];
   const suited = actor.look === "riley" || (actor.look === "player" && actor.suitBlend > 0.55);
-  const bob = Math.sin(time * 2.1 + actor.bob) * 1.3;
-  const stride = actor.walking ? Math.sin(actor.walkPhase) : 0;
+  const gait = actor.gait ?? (actor.walking ? 1 : 0);
+  const breath = Math.sin(time * 2.1 + actor.bob);
+  const bob = -Math.abs(Math.sin(actor.walkPhase)) * gait * 0.9;
+  const stride = Math.sin(actor.walkPhase) * gait;
   ctx.save();
-  ctx.translate(actor.x, actor.y + bob);
+  ctx.translate(actor.x, actor.y);
   ctx.fillStyle = "rgba(6, 10, 18, 0.4)";
   ctx.beginPath();
   ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.translate(0, bob);
+  ctx.rotate(actor.lean ?? 0);
   if (actor.facing === "left") ctx.scale(-1, 1);
   const side = actor.facing === "left" || actor.facing === "right";
   const back = actor.facing === "up";
 
   ctx.fillStyle = palette.dark;
   if (side) {
-    fillRound(ctx, -4, -18, 8, 16, 3, palette.dark);
-    fillRound(ctx, 3 + stride * 4, -16, 8, 16, 3, palette.dark);
+    fillRound(ctx, -4 - stride * 6, -18, 8, 16, 3, palette.dark);
+    fillRound(ctx, 3 + stride * 6, -16, 8, 16, 3, palette.dark);
   } else {
-    fillRound(ctx, -9 + stride * 3, -18, 7, 16, 3, palette.dark);
-    fillRound(ctx, 2 - stride * 3, -18, 7, 16, 3, palette.dark);
+    fillRound(ctx, -9, -18 + stride * 3, 7, 16, 3, palette.dark);
+    fillRound(ctx, 2, -18 - stride * 3, 7, 16, 3, palette.dark);
   }
 
+  ctx.translate(breath * 0.25 * (1-gait), -breath * 0.45 * (1-gait));
+  ctx.scale(1 + breath * 0.004 * (1-gait), 1 + breath * 0.006 * (1-gait));
   if (palette.pack && (back || suited)) {
     fillRound(ctx, back ? -8 : 6, -44, 14, 20, 4, palette.dark);
     ctx.fillStyle = palette.accent;
@@ -564,15 +587,15 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: numbe
 
   fillRound(ctx, -14, -46, 28, 30, 9, palette.cloth);
   fillRound(ctx, -14, -46, 7, 18, 4, palette.accent);
-  fillRound(ctx, -18, -42 + (side ? 0 : stride * 4), 7, 16, 3, palette.cloth);
-  fillRound(ctx, 11, -42 - (side ? 0 : stride * 4), 7, 16, 3, palette.cloth);
+  fillRound(ctx, -18 + (side ? stride * 4 : 0), -42 + (side ? 0 : -stride * 4), 7, 16, 3, palette.cloth);
+  fillRound(ctx, 11 - (side ? stride * 4 : 0), -42 + (side ? 0 : stride * 4), 7, 16, 3, palette.cloth);
 
   ctx.fillStyle = suited ? palette.cloth : palette.skin;
   ctx.beginPath();
   ctx.arc(side ? 1 : 0, -58, suited ? 14 : 12, 0, Math.PI * 2);
   ctx.fill();
 
-  if (suited && palette.visor) {
+  if (suited && palette.visor && !back) {
     ctx.fillStyle = palette.visor;
     ctx.beginPath();
     ctx.ellipse(side ? 4 : 0, -57, side ? 7 : 10, 6, 0, 0, Math.PI * 2);
@@ -595,13 +618,13 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: numbe
     }
     ctx.fill();
   } else {
-    ctx.fillStyle = palette.hair;
+    ctx.fillStyle = suited ? palette.cloth : palette.hair;
     ctx.beginPath();
     ctx.arc(0, -58, 12, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  if (!suited) {
+  if (!suited && !back) {
     fillRound(ctx, 2, -38, 8, 6, 2, palette.badge);
   }
   if (actor.radioLight) {

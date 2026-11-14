@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SELENE · Astronaut design review</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background:#0d1726; color:#e9eff6; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    main { max-width:1500px; margin:auto; padding:44px 36px 64px; }
+    header { display:flex; align-items:start; justify-content:space-between; gap:24px; border-bottom:1px solid #304157; padding-bottom:28px; }
+    .eyebrow { color:#66dce9; letter-spacing:.2em; font-size:11px; font-weight:700; }
+    h1 { margin:12px 0; font-size:clamp(28px,4vw,44px); font-weight:600; letter-spacing:-.04em; }
+    p { color:#a9b9cb; line-height:1.65; margin:8px 0; max-width:760px; font-size:14px; }
+    .tag { white-space:nowrap; border:1px solid #7b5e37; color:#f0b86d; padding:8px 12px; border-radius:30px; font-size:11px; letter-spacing:.08em; }
+    .toolbar { display:flex; gap:22px; flex-wrap:wrap; align-items:center; padding:22px 0; }
+    fieldset { border:0; padding:0; margin:0; display:flex; gap:6px; align-items:center; }
+    legend { float:left; margin-right:12px; font-size:12px; color:#a9b9cb; line-height:32px; }
+    button { cursor:pointer; font:inherit; font-size:12px; color:#bccbdc; background:#1c2b40; border:1px solid #384a61; border-radius:6px; padding:8px 12px; }
+    button[aria-pressed="true"] { background:#294857; color:#90f1f7; border-color:#55d5e9; }
+    button:focus-visible, a:focus-visible { outline:2px solid #f0a84b; outline-offset:4px; }
+    #status { font-size:12px; color:#8ddbc7; margin-left:auto; }
+    h2 { font-size:20px; font-weight:550; margin:0; letter-spacing:-.02em; }
+    .section-heading { display:flex; justify-content:space-between; align-items:baseline; margin:28px 0 12px; gap:16px; }
+    .section-heading span { color:#90a3bb; font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .card { margin:0; border:1px solid #304157; border-radius:12px; overflow:hidden; background:#142237; }
+    figcaption { padding:14px 16px; display:flex; justify-content:space-between; font-size:12px; border-bottom:1px solid #304157; }
+    figcaption span { color:#8398af; font-size:11px; }
+    .stage { background-color:#25394f; background-image:linear-gradient(45deg,#ffffff05 25%,transparent 25%,transparent 75%,#ffffff05 75%),linear-gradient(45deg,#ffffff05 25%,transparent 25%,transparent 75%,#ffffff05 75%); background-size:24px 24px; background-position:0 0,12px 12px; display:flex; justify-content:center; align-items:flex-end; }
+    [data-background="light"] .stage { background-color:#dce5ed; background-image:linear-gradient(45deg,#00000005 25%,transparent 25%,transparent 75%,#00000005 75%),linear-gradient(45deg,#00000005 25%,transparent 25%,transparent 75%,#00000005 75%); }
+    [data-background="floor"] .stage { background:#314864; }
+    .small { height:142px; padding-bottom:25px; }
+    .small img { width:48px; height:76.8px; object-fit:contain; }
+    .native-wrap { overflow-x:auto; }
+    .native-grid { min-width:1340px; }
+    .native { height:544px; padding:16px 0; }
+    .native img { width:320px; height:512px; flex-shrink:0; }
+    a { color:#70dce9; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .native a { display:block; line-height:0; }
+    .notes { border-top:1px solid #304157; padding-top:22px; margin-top:32px; display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+    .notes p { font-size:12px; }
+    @media(max-width:700px) { main { padding:24px 16px; } header { flex-direction:column; } .grid:not(.native-grid) { grid-template-columns:repeat(2,minmax(0,1fr)); } .section-heading { align-items:start; flex-direction:column; gap:6px; } #status { margin-left:0; } }
+  </style>
+</head>
+<body data-background="dark">
+<main>
+  <header>
+    <div><div class="eyebrow">PROJECT SELENE / CHARACTER ART / 01</div><h1>One explorer. Two mission stages.</h1><p>Navy mission uniform and flight-ready spacesuit. Four directional views, a shared silhouette, and a consistent crescent insignia.</p></div>
+    <div class="tag">APPROVED / IN GAME</div>
+  </header>
+  <div class="toolbar">
+    <fieldset><legend>Background</legend><button data-bg="dark" aria-pressed="true">Dark</button><button data-bg="light" aria-pressed="false">Light</button><button data-bg="floor" aria-pressed="false">Facility floor</button></fieldset>
+    <fieldset><legend>Game scale</legend><button data-scale="0.75" aria-pressed="false">75%</button><button data-scale="1" aria-pressed="true">100%</button><button data-scale="1.25" aria-pressed="false">125%</button></fieldset>
+    <output id="status" aria-live="polite">Loading artwork…</output>
+  </div>
+  <div class="section-heading"><h2>In-game scale</h2><span id="scale-label">Approximately 70–73 px tall · 100% camera scale</span></div>
+  <p>The approved directional artwork is now used for the player in game. This page shows the source poses at rest.</p>
+  <div class="section-heading"><h2>Walking cycles</h2><span>Four stepping frames per direction · both outfits</span></div>
+  <section id="walk-cycles" class="grid" aria-label="Animated walking cycles"></section>
+  <section id="small-uniform" class="grid" aria-label="Mission uniform at game scale"></section>
+  <div style="height:12px"></div>
+  <section id="small-spacesuit" class="grid" aria-label="Spacesuit at game scale"></section>
+  <div class="section-heading"><h2>01 / Mission uniform</h2><span>Native assets · 320 × 512 px each · scroll horizontally on small screens</span></div>
+  <div class="native-wrap"><section id="native-uniform" class="grid native-grid" aria-label="Mission uniform at native resolution"></section></div>
+  <div class="section-heading"><h2>02 / Spacesuit</h2><span>Native assets · 320 × 512 px each · click a view to open the PNG</span></div>
+  <div class="native-wrap"><section id="native-spacesuit" class="grid native-grid" aria-label="Spacesuit at native resolution"></section></div>
+  <div class="notes"><p>Short swept hair, tailored navy jacket, orange shoulder details and cyan trim.<br>Matching suit proportions, dark visor, articulated gloves and a compact life-support pack.</p><p><a href="../assets/astronaut-v2/source-sheet.png">Original model sheet</a> · <a href="../assets/astronaut-v2/manifest.json">Asset manifest</a> · <a href="../assets/astronaut-v2/README.md">Artwork notes</a></p></div>
+</main>
+<script>
+  const base = '../assets/astronaut-v2/';
+  const views = ['front', 'back', 'left', 'right'];
+  const labels = ['Front / ↓', 'Back / ↑', 'Left / ←', 'Right / →'];
+  const pending = [];
+  const walking = [];
+  for (const outfit of ['uniform','spacesuit']) {
+    const atlas = new Image(); atlas.src = `${base}${outfit}-walk.png`;
+    views.forEach((view,row)=>{
+      const card=document.createElement('figure');card.className='card';
+      const caption=document.createElement('figcaption');caption.textContent=`${outfit} / ${view}`;
+      const stage=document.createElement('div');stage.className='stage';stage.style.height='180px';
+      const canvas=document.createElement('canvas');canvas.width=320;canvas.height=512;canvas.style.width='96px';canvas.style.height='153.6px';
+      stage.append(canvas);card.append(caption,stage);document.getElementById('walk-cycles').append(card);
+      walking.push({atlas,row,ctx:canvas.getContext('2d')});
+    });
+  }
+  function animateWalk(now) {
+    const frame=Math.floor(now/122)%4;
+    for(const {atlas,row,ctx} of walking)if(atlas.complete&&atlas.naturalWidth){ctx.clearRect(0,0,320,512);ctx.drawImage(atlas,frame*320,row*512,320,512,0,0,320,512);}
+    requestAnimationFrame(animateWalk);
+  }
+  requestAnimationFrame(animateWalk);
+  for (const outfit of ['uniform','spacesuit']) {
+    for (const size of ['small','native']) {
+      const section = document.getElementById(`${size}-${outfit}`);
+      views.forEach((view, i) => {
+        const card = document.createElement('figure'); card.className = 'card';
+        const caption = document.createElement('figcaption');
+        caption.innerHTML = `${labels[i]}<span>${outfit === 'uniform' ? 'UNIFORM' : 'SPACESUIT'}</span>`;
+        const stage = document.createElement('div'); stage.className = `stage ${size}`;
+        const img = new Image(); img.alt = `Astronaut ${outfit}, ${view} view`; img.width = 320; img.height = 512;
+        pending.push(new Promise(resolve => {
+          img.onload = () => resolve({ok:img.naturalWidth === 320 && img.naturalHeight === 512,file:img.src});
+          img.onerror = () => resolve({ok:false,file:img.src});
+        }));
+        img.src = `${base}${outfit}-${view}.png`;
+        if (size === 'native') { const link = document.createElement('a'); link.href=img.src; link.append(img); stage.append(link); }
+        else stage.append(img);
+        card.append(caption,stage); section.append(card);
+      });
+    }
+  }
+  Promise.all(pending).then(results => {
+    const failed = results.filter(r=>!r.ok);
+    const status = document.getElementById('status');
+    status.textContent = failed.length ? `Artwork load failed: ${failed.length} previews` : '8 / 8 assets loaded · both scales ready';
+    document.body.dataset.loaded = failed.length ? 'error' : 'ready';
+    if(failed.length) { status.style.color='#ff957f'; console.error(failed); }
+  });
+  document.querySelectorAll('[data-bg]').forEach(button=>button.addEventListener('click',()=>{
+    document.body.dataset.background=button.dataset.bg;
+    document.querySelectorAll('[data-bg]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+  }));
+  document.querySelectorAll('[data-scale]').forEach(button=>button.addEventListener('click',()=>{
+    const scale=Number(button.dataset.scale);
+    document.querySelectorAll('.small img').forEach(img=>{img.style.width=`${48*scale}px`;img.style.height=`${76.8*scale}px`;});
+    document.querySelectorAll('[data-scale]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    document.getElementById('scale-label').textContent=`Approximately ${Math.round(70*scale)}–${Math.round(73*scale)} px tall · ${scale*100}% camera scale`;
+  }));
+</script>
+</body>
+</html>

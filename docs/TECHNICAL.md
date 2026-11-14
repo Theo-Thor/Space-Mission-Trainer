@@ -16,6 +16,7 @@ A game engine was not added. The chapter is one small map, and the interface is 
 - `src/content/story.ts` holds the script.
 - `src/content/world.ts` holds rooms, people, and furniture.
 - `src/render/draw.ts` draws the facility and characters.
+- `src/render/player-art.ts` draws the approved directional player PNGs and the outfit transition; missing art falls back to shapes.
 - `src/ui/surface.ts` updates the HTML panels.
 
 ## Progress
@@ -32,7 +33,7 @@ The title card is a separate HTML composition. It is not the game engine. The ga
 
 ## Known limits
 
-- Characters are drawn from shapes, not illustrated sprites.
+- The player uses illustrated PNG idle poses and four-frame directional walk cycles for both outfits. NPCs still use animated shapes.
 - Sound is a few generated tones, with a mute button. There is no music.
-- The openings between rooms are wide, so the player is not stopped by a narrow doorway.
+- The reception doorway has a reusable automatic sliding door with panel collision. Other room openings remain decorative.
 - `window.__SELENE__` exposes teleport, interact, and snapshot helpers for local testing.
