@@ -87,15 +87,24 @@ function bakeRoom(room: Room): HTMLCanvasElement {
   ctx.fillStyle = gradient(ctx, 28, room.h - 56, top, bottom);
   ctx.fillRect(28, 28, room.w - 56, room.h - 56);
   ctx.save(); ctx.beginPath(); ctx.rect(28, 28, room.w - 56, room.h - 56); ctx.clip();
-  for (let y = 28, row = 0; y < room.h - 28; y += 96, row++) {
-    for (let x = 28, col = 0; x < room.w - 28; x += 112, col++) {
-      const light = ((row * 7 + col * 3) % 5) / 500;
-      ctx.fillStyle = `rgba(210,230,242,${light})`; ctx.fillRect(x + 1, y + 1, 110, 94);
-      ctx.strokeStyle = "rgba(10,24,38,0.3)"; ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, 112, 96);
-      ctx.strokeStyle = "rgba(185,208,221,0.09)"; ctx.beginPath();
-      ctx.moveTo(x + 1, y + 95); ctx.lineTo(x + 111, y + 95); ctx.lineTo(x + 111, y + 1); ctx.stroke();
-    }
+  // Broad, offset floor joints replace the old tight repeating tile grid.
+  // The floor now reads as one continuous facility surface at the game's camera scale.
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(10,24,38,0.24)";
+  for (const y of [room.h * 0.34, room.h * 0.72]) {
+    ctx.beginPath(); ctx.moveTo(28, y); ctx.lineTo(room.w * 0.39, y); ctx.moveTo(room.w * 0.43, y); ctx.lineTo(room.w - 28, y); ctx.stroke();
+  }
+  for (const [x, top, bottom] of [[room.w * 0.31, 28, room.h * 0.34], [room.w * 0.68, room.h * 0.34, room.h * 0.72], [room.w * 0.46, room.h * 0.72, room.h - 28]]) {
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+  }
+  // Soft, irregular light pools add depth without making another hard grid.
+  for (const [x, y, radius, color] of [
+    [room.w * 0.22, room.h * 0.28, room.w * 0.28, "rgba(85,213,233,0.045)"],
+    [room.w * 0.76, room.h * 0.68, room.w * 0.32, "rgba(240,168,75,0.035)"],
+  ] as const) {
+    const glow = ctx.createRadialGradient(x, y, 4, x, y, radius);
+    glow.addColorStop(0, color); glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow; ctx.fillRect(28, 28, room.w - 56, room.h - 56);
   }
   // Insets ground existing furniture without changing its world footprint.
   for (const prop of props.filter(p => p.x >= room.x + 28 && p.x < room.x + room.w - 28 && p.y >= room.y + 28 && p.y < room.y + room.h - 28 && p.blocks)) {
@@ -112,16 +121,11 @@ function bakeRoom(room: Room): HTMLCanvasElement {
   edge.addColorStop(0, "rgba(4,12,23,0.22)"); edge.addColorStop(1, "rgba(4,12,23,0)");
   ctx.fillStyle = edge; ctx.fillRect(28, 28, 20, room.h - 56);
   ctx.restore();
-  for (let x = 28, i = 0; x < room.w - 28; x += 96, i++) {
-    const w = Math.min(92, room.w - 28 - x);
-    wallPanel(ctx, x, 7, w, 18, i % 3 === 1);
-    wallPanel(ctx, x, room.h - 25, w, 18, i % 3 === 2);
-  }
-  for (let y = 28, i = 0; y < room.h - 28; y += 96, i++) {
-    const h = Math.min(92, room.h - 28 - y);
-    wallPanel(ctx, 7, y, 18, h, i % 3 === 1);
-    wallPanel(ctx, room.w - 25, y, 18, h, i % 3 === 2);
-  }
+  // Continuous bulkhead rails with only a few larger service bays avoid the boxed-in look.
+  wallPanel(ctx, 28, 7, room.w - 56, 18, true);
+  wallPanel(ctx, 28, room.h - 25, room.w - 56, 18, false);
+  wallPanel(ctx, 7, 28, 18, room.h - 56, false);
+  wallPanel(ctx, room.w - 25, 28, 18, room.h - 56, true);
   return canvas;
 }
 
