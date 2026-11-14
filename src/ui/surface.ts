@@ -212,6 +212,10 @@ export class Surface {
     this.arrival.hidden = false;
   }
 
+  hideArrival(): void {
+    this.arrival.hidden = true;
+  }
+
   setMuted(muted: boolean): void {
     this.mute.textContent = muted ? "Sound off" : "Sound on";
     this.mute.setAttribute("aria-pressed", muted ? "true" : "false");

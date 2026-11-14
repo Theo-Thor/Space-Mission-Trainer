@@ -3,8 +3,11 @@ import { drawPlayerArt } from "./player-art";
 import { drawRileyArt } from "./riley-art";
 import { drawShipInterior } from "./ship-art";
 import { drawFacilityShell, drawFacilityProp, drawFacilityThreshold } from "./facility-art";
+import { drawCrewArt } from "./crew-art";
+import { drawDecal, drawLunarProp } from "./lunar-art";
 import type { Dir, Look } from "../types";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
+import { CRATER, lunarDecals, lunarDoors, lunarProps, lunarRooms, PAD, SURFACE_AREA, type LunarProp } from "../content/lunar";
 
 export interface PaintActor {
   id: string;
@@ -38,7 +41,7 @@ export interface Paint {
   doorOpenness: Record<string, number>;
   viewW: number;
   viewH: number;
-  scene: "facility" | "ship";
+  scene: "facility" | "ship" | "lunar";
   stationsLive: boolean;
 }
 
@@ -62,6 +65,10 @@ const LOOKS: Record<Exclude<Look, "player">, Palette> = {
   riley: { cloth: "#F3F7FB", accent: "#55D5E9", dark: "#3E4C5E", skin: "#E2B89A", hair: "#2A211C", badge: "#55D5E9", visor: "#163040", pack: true },
   crew: { cloth: "#3E5674", accent: "#F0A84B", dark: "#243246", skin: "#E2B89A", hair: "#2C241C", badge: "#E8EFF5", visor: null, pack: false },
   crew2: { cloth: "#3A4A44", accent: "#4FA6A2", dark: "#24302C", skin: "#C99572", hair: "#1A140F", badge: "#4FA6A2", visor: null, pack: false },
+  // Fallback shapes only; the lunar crew normally draw from their sprite art.
+  jun: { cloth: "#2F6B45", accent: "#F2CF3A", dark: "#1C3A28", skin: "#E2B89A", hair: "#15110E", badge: "#F2CF3A", visor: null, pack: false },
+  mara: { cloth: "#7A2E3E", accent: "#F1E6D0", dark: "#45202A", skin: "#C99572", hair: "#7A3A22", badge: "#F1E6D0", visor: null, pack: false },
+  omar: { cloth: "#4A4F57", accent: "#6FE3B4", dark: "#2A2E34", skin: "#8D5A3C", hair: "#1A140F", badge: "#6FE3B4", visor: null, pack: false },
 };
 
 const UNIFORM: Palette = {
@@ -103,6 +110,10 @@ export function drawStars(ctx: CanvasRenderingContext2D, width: number, height: 
 export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
   if (paint.scene === "ship") {
     drawShipFrame(ctx, paint);
+    return;
+  }
+  if (paint.scene === "lunar") {
+    drawLunarFrame(ctx, paint);
     return;
   }
   ctx.fillStyle = "#0C1522";
@@ -152,6 +163,147 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.fillRect(0, paint.viewH - 18, paint.viewW, 18);
 }
 
+/** Selene Base on the Moon: same room/door/depth rules as the Earth facility, plus the surface strip. */
+function drawLunarFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
+  ctx.fillStyle = "#070B12";
+  ctx.fillRect(0, 0, paint.viewW, paint.viewH);
+  ctx.save();
+  ctx.translate(-paint.cameraX * paint.zoom, -paint.cameraY * paint.zoom);
+  ctx.scale(paint.zoom, paint.zoom);
+  const right = paint.cameraX + paint.viewW / paint.zoom;
+  const bottom = paint.cameraY + paint.viewH / paint.zoom;
+  const visible = (x: number, y: number, w: number, h: number): boolean =>
+    x + w >= paint.cameraX && y + h >= paint.cameraY && x <= right && y <= bottom;
+
+  drawSpace(ctx, paint);
+  if (visible(SURFACE_AREA.x, SURFACE_AREA.y, SURFACE_AREA.w, SURFACE_AREA.h)) drawRegolith(ctx);
+  for (const room of lunarRooms) {
+    if (visible(room.x, room.y, room.w, room.h)) drawRoom(ctx, room, paint, lunarProps);
+  }
+  for (const door of lunarDoors) {
+    if (visible(door.x - 8, door.y - 8, door.w + 16, door.h + 16) || visible(door.signAt.x - 150, door.signAt.y - 20, 300, 40)) drawDoor(ctx, door);
+  }
+  for (const decal of lunarDecals) {
+    if (visible(decal.x - 10, decal.y - 10, decal.w + 20, decal.h + 20)) drawDecal(ctx, decal);
+  }
+
+  if (paint.highlight) {
+    const pulse = 0.35 + Math.sin(paint.time * 4) * 0.15;
+    ctx.strokeStyle = `rgba(240, 168, 75, ${0.45 + pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(paint.highlight.x, paint.highlight.y + 4, 26, 12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const layers: { z: number; draw: () => void }[] = [];
+  for (const prop of lunarProps) {
+    if (!visible(prop.x - 60, prop.y - 80, prop.w + 120, prop.h + 100)) continue;
+    layers.push({ z: prop.y + prop.h, draw: () => drawLunarProp(ctx, prop, paint.time) });
+  }
+  for (const actor of [...paint.actors, paint.player]) {
+    if (!visible(actor.x - 40, actor.y - 90, 80, 110)) continue;
+    layers.push({ z: actor.y, draw: () => drawActor(ctx, actor, paint.time) });
+  }
+  layers.sort((a, b) => a.z - b.z);
+  for (const layer of layers) layer.draw();
+
+  ctx.restore();
+  ctx.fillStyle = "rgba(16, 27, 46, 0.18)";
+  ctx.fillRect(0, 0, paint.viewW, 18);
+  ctx.fillRect(0, paint.viewH - 18, paint.viewW, 18);
+}
+
+/** Black sky with fixed stars behind the base (world-anchored, so they scroll with the camera). */
+function drawSpace(ctx: CanvasRenderingContext2D, paint: Paint): void {
+  const x0 = paint.cameraX - 40;
+  const y0 = paint.cameraY - 40;
+  const w = paint.viewW / paint.zoom + 80;
+  const h = paint.viewH / paint.zoom + 80;
+  ctx.fillStyle = "#070B12";
+  ctx.fillRect(x0, y0, w, h);
+  for (let i = 0; i < 260; i += 1) {
+    const sx = (i * 389) % 3600 - 70;
+    const sy = (i * 211) % 2200 - 50;
+    if (sx < x0 || sx > x0 + w || sy < y0 || sy > y0 + h || sy > SURFACE_AREA.y) continue;
+    ctx.globalAlpha = 0.25 + ((i * 7) % 10) / 20 + Math.sin(paint.time * 1.2 + i) * 0.08;
+    ctx.fillStyle = i % 6 === 0 ? "#9FE6F2" : "#E8EFF5";
+    const size = i % 5 === 0 ? 2.2 : 1.4;
+    ctx.fillRect(sx, sy, size, size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawRegolith(ctx: CanvasRenderingContext2D): void {
+  const { x, y, w, h } = SURFACE_AREA;
+  const ground = ctx.createLinearGradient(0, y, 0, y + h);
+  ground.addColorStop(0, "#5B626D");
+  ground.addColorStop(1, "#444A54");
+  ctx.fillStyle = ground;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "rgba(34,38,46,0.55)";
+  for (let i = 0; i < 70; i += 1) {
+    const cx = x + ((i * 389) % w);
+    const cy = y + 30 + ((i * 131) % (h - 60));
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 8 + (i % 5) * 6, 3 + (i % 3) * 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "rgba(170,176,186,0.25)";
+  for (let i = 0; i < 160; i += 1) ctx.fillRect(x + ((i * 733) % w), y + ((i * 97) % h), 3, 2);
+  ctx.strokeStyle = "rgba(200,210,222,0.35)";
+  ctx.setLineDash([16, 12]);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  // Landing pad
+  ctx.fillStyle = "#6A707B";
+  ctx.beginPath();
+  ctx.ellipse(PAD.x, PAD.y, 330, 70, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#F0A84B";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(PAD.x, PAD.y, 230, 48, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(240,168,75,0.55)";
+  ctx.font = "700 20px Segoe UI, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("LANDING PAD", PAD.x, PAD.y + 40);
+  for (const dx of [-300, 300]) {
+    ctx.beginPath();
+    ctx.arc(PAD.x + dx, PAD.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#F0A84B";
+    ctx.fill();
+  }
+  // Permanently shadowed crater
+  ctx.fillStyle = "#06090F";
+  ctx.beginPath();
+  ctx.ellipse(CRATER.x, CRATER.y, CRATER.rx, CRATER.ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#2A3240";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#718398";
+  ctx.font = "600 18px Segoe UI, sans-serif";
+  ctx.fillText("PERMANENTLY SHADOWED CRATER", CRATER.x, CRATER.y + 6);
+  // Rover tracks leaving the garage hatch
+  ctx.strokeStyle = "rgba(30,34,42,0.55)";
+  ctx.lineWidth = 4;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.moveTo(760, 1830);
+  ctx.quadraticCurveTo(900, 1960, 1250, 1990);
+  ctx.moveTo(780, 1830);
+  ctx.quadraticCurveTo(920, 1975, 1270, 2000);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#C9D3DE";
+  ctx.font = "700 20px Segoe UI, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("LUNAR SURFACE — SUIT REQUIRED (EVA)", x + 24, y + h - 20);
+}
+
 function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.fillStyle = "#070d16";
   ctx.fillRect(0, 0, paint.viewW, paint.viewH);
@@ -175,8 +327,8 @@ function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.fillRect(0, paint.viewH - 18, paint.viewW, 18);
 }
 
-function drawRoom(ctx: CanvasRenderingContext2D, room: Room, paint: Paint): void {
-  if (!drawFacilityShell(ctx, room)) {
+function drawRoom(ctx: CanvasRenderingContext2D, room: Room, paint: Paint, roomProps: (PropDef | LunarProp)[] = props): void {
+  if (!drawFacilityShell(ctx, room, roomProps)) {
   fillRound(ctx, room.x, room.y, room.w, room.h, 22, "#172433");
   fillRound(ctx, room.x + 12, room.y + 12, room.w - 24, room.h - 24, 16, "#243246");
   fillRound(ctx, room.x + 24, room.y + 24, room.w - 48, room.h - 48, 12, room.floor);
@@ -259,6 +411,7 @@ function drawDoor(ctx: CanvasRenderingContext2D, door: Door, openness?: number):
     ctx.fillStyle = openness >= 0.99 ? '#55D5E9' : '#F0A84B';
     ctx.fillRect(door.x+5,door.y+5,5,5);
   }
+  if (!door.sign) return;
   ctx.fillStyle = door.accent;
   ctx.fillText(door.sign, door.signAt.x, door.signAt.y);
   ctx.beginPath();
@@ -592,6 +745,10 @@ function drawProp(ctx: CanvasRenderingContext2D, prop: PropDef, paint: Paint): v
 function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: number): void {
   if (actor.look === "player" && drawPlayerArt(ctx, actor, time)) return;
   if (actor.look === "riley" && drawRileyArt(ctx, actor)) return;
+  if (drawCrewArt(ctx, actor, time)) {
+    drawLabel(ctx, actor);
+    return;
+  }
   const palette = actor.look === "player" ? mixPalette(UNIFORM, SUIT, actor.suitBlend) : LOOKS[actor.look];
   const suited = actor.look === "riley" || (actor.look === "player" && actor.suitBlend > 0.55);
   const gait = actor.gait ?? (actor.walking ? 1 : 0);
@@ -676,16 +833,18 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: numbe
     ctx.fill();
   }
   ctx.restore();
+  drawLabel(ctx, actor);
+}
 
-  if (actor.label) {
-    ctx.font = "700 12px Segoe UI, sans-serif";
-    ctx.textAlign = "center";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(16, 27, 46, 0.75)";
-    ctx.strokeText(actor.label, actor.x, actor.y - 80);
-    ctx.fillStyle = "#E8EFF5";
-    ctx.fillText(actor.label, actor.x, actor.y - 80);
-  }
+function drawLabel(ctx: CanvasRenderingContext2D, actor: PaintActor): void {
+  if (!actor.label) return;
+  ctx.font = "700 12px Segoe UI, sans-serif";
+  ctx.textAlign = "center";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(16, 27, 46, 0.75)";
+  ctx.strokeText(actor.label, actor.x, actor.y - 80);
+  ctx.fillStyle = "#E8EFF5";
+  ctx.fillText(actor.label, actor.x, actor.y - 80);
 }
 
 function mixPalette(a: Palette, b: Palette, t: number): Palette {

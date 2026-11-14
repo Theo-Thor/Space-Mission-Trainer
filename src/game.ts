@@ -2,6 +2,7 @@ import { CharacterAnimator } from "./systems/animation";
 import { AutomaticDoor, actorFootprint } from "./systems/doors";
 import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD, type PropDef } from "./content/world";
 import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, RILEY_SPAWN, SHIP_LOOK, SHIP_SPAWN, SHIP_WORLD, shipObstacles, shipProps, shipRoomAt, shipWalkable } from "./content/ship";
+import { LUNAR_RILEY, LUNAR_SPAWN, LUNAR_WORLD, lunarCrew, lunarObstacles, lunarProps, lunarRoomAt, lunarWalkable, NPC_GREETING, onSurface, type LunarProp } from "./content/lunar";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { drawVoyage } from "./render/voyage-art";
 import { CUES, VOYAGE_DURATION } from "./content/voyage";
@@ -80,6 +81,7 @@ export class Game {
   private bounds = WORLD;
   private readonly actors: Actor[];
   private readonly player: Actor;
+  private readonly lunarActors: Actor[];
   private readonly radioTimers: { t: number; ids: string[] }[] = [];
   private time = 0;
   private cameraX = 0;
@@ -103,7 +105,7 @@ export class Game {
   private rileyWalking = false;
   private rileyIndex = 0;
   private rileyShip: "facility" | "hold" | "enter" | "wait" | "seat" | "seated" = "facility";
-  private scene: "facility" | "ship" | "voyage" = "facility";
+  private scene: "facility" | "ship" | "voyage" | "lunar" = "facility";
   private voyageT = 0;
   private voyageCue = 0;
   private voyageDone = false;
@@ -159,7 +161,23 @@ export class Game {
       interactive: false,
       radius: 0,
     };
-    for (const actor of [...this.actors, this.player]) this.animator.track(actor);
+    this.lunarActors = lunarCrew.map((def, index) => ({
+      id: def.id,
+      x: def.x,
+      y: def.y,
+      facing: def.facing,
+      look: def.look,
+      label: def.name,
+      walking: false,
+      walkPhase: 0,
+      bob: index * 0.9 + 0.3,
+      suitBlend: 0,
+      radioLight: false,
+      prompt: `E — Talk to ${def.name}`,
+      interactive: true,
+      radius: 78,
+    }));
+    for (const actor of [...this.actors, ...this.lunarActors, this.player]) this.animator.track(actor);
     this.mission = new Mission({
       onObjective: (text) => this.ui.setObjective(text),
       onToast: (title, body, detail) => this.ui.pushToast(title, body, detail),
@@ -197,6 +215,8 @@ export class Game {
     this.ui.setHintVisible(true);
     this.ui.setLocation(roomAt(this.player.x, this.player.y).label);
     this.placeCamera(0);
+    // The radio is already on the player's wrist: Mission Control checks in after the intro.
+    this.radioTimers.push({ t: 4.5, ids: ["R001", "R002"] });
   }
 
   requestAdvance(): void {
@@ -289,12 +309,13 @@ export class Game {
     this.updateRadios(dt);
     this.syncDialogue();
     this.updateIntro(dt);
-    this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
+    if (this.scene === "lunar") this.updateLunarSuit(dt);
+    else this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
     this.player.radioLight = this.mission.radioAcquired;
     this.player.label = "";
-    for (const actor of [...this.actors, this.player]) this.animator.update(actor, dt);
+    for (const actor of [...this.people(), this.player]) this.animator.update(actor, dt);
     this.placeCamera(dt);
-    const here = this.scene === "ship" ? shipRoomAt(this.player.x, this.player.y) : roomAt(this.player.x, this.player.y);
+    const here = this.scene === "ship" ? shipRoomAt(this.player.x, this.player.y) : this.scene === "lunar" ? lunarRoomAt(this.player.x, this.player.y) : roomAt(this.player.x, this.player.y);
     this.ui.setLocation(here.label);
     this.ui.setRadioStatus(this.radioLabel());
     this.placePrompt(locked);
@@ -316,7 +337,7 @@ export class Game {
       drawVoyage(this.ctx, this.viewW, this.viewH, this.voyageT);
       return;
     }
-    const paintActors = (this.scene === "ship" ? this.actors.filter((actor) => actor.id === "riley") : this.actors).map((actor) => ({ ...actor }));
+    const paintActors = this.people().map((actor) => ({ ...actor }));
     drawWorld(this.ctx, {
       time: this.time,
       cameraX: this.cameraX,
@@ -325,7 +346,7 @@ export class Game {
       actors: paintActors,
       player: { ...this.player },
       highlight: this.highlight(),
-      focusRoom: this.scene === "ship" ? "cockpit" : focusFor(this.mission.objective),
+      focusRoom: this.scene === "ship" ? "cockpit" : this.scene === "lunar" ? "" : focusFor(this.mission.objective),
       radioTaken: this.mission.radioAcquired,
       suitReady: this.mission.suitEquipped,
       hatchOpen: this.hatchOpen,
@@ -339,6 +360,10 @@ export class Game {
 
   private handleInteract(id: string): void {
     if (this.isLocked()) return;
+    if (this.scene === "lunar") {
+      this.handleLunarInteract(id);
+      return;
+    }
     const result = this.mission.resolve(id);
     const actor = this.actors.find((item) => item.id === id);
     if (actor) faceToward(actor, this.player);
@@ -687,6 +712,76 @@ export class Game {
     this.ui.showArrival(this.mission.playerName);
   }
 
+  /** After the touchdown card: the player stands on the landing pad in the suit, Riley beside them. */
+  enterLunar(): void {
+    if (this.scene !== "voyage" || !this.voyageDone) return;
+    this.scene = "lunar";
+    this.areas = lunarWalkable();
+    this.blocks = lunarObstacles();
+    this.bounds = LUNAR_WORLD;
+    this.seated = false;
+    this.seatActive = false;
+    this.stationsLive = false;
+    this.rileyShip = "facility";
+    this.player.seated = false;
+    this.player.x = LUNAR_SPAWN.x;
+    this.player.y = LUNAR_SPAWN.y;
+    this.player.facing = "up";
+    this.player.walking = false;
+    this.suitBlend = 1;
+    this.player.suitBlend = 1;
+    this.animator.track(this.player);
+    const riley = this.actor("riley");
+    riley.x = LUNAR_RILEY.x;
+    riley.y = LUNAR_RILEY.y;
+    riley.facing = "left";
+    riley.seated = false;
+    riley.walking = false;
+    riley.interactive = true;
+    riley.prompt = "E — Talk to Riley Morgan";
+    riley.radius = 78;
+    this.animator.track(riley);
+    this.ui.hideArrival();
+    this.ui.setVoyageSkip(false);
+    this.ui.setHudVisible(true);
+    this.ui.setBannerLines("SELENE BASE", "LUNAR SOUTH POLE · 2048");
+    this.banner = 3.4;
+    this.hint = 8;
+    this.intro = 0;
+    this.ui.setObjective("Explore Selene Base");
+    this.ui.pushToast("OBJECTIVE UPDATED", "Explore Selene Base");
+    this.shipFade = 0.9;
+    this.ui.setFade(1);
+    this.placeCamera(0);
+  }
+
+  private handleLunarInteract(id: string): void {
+    const actor = this.people().find((item) => item.id === id);
+    if (actor) {
+      faceToward(actor, this.player);
+      const speaker = actor.id === "riley" ? "Riley Morgan" : actor.label;
+      this.dialogue.play({ id: `LUNAR_HELLO_${actor.id}`, lines: [{ speaker, text: NPC_GREETING }] }, this.mission.playerName, () => undefined);
+      this.syncDialogue();
+      this.ui.hideInspect();
+      this.sfx.blip();
+      return;
+    }
+    const prop = lunarProps.find((item) => item.id === id);
+    if (prop?.examine) {
+      this.ui.showInspect(prop.examine.title, prop.examine.body, prop.examine.detail);
+      this.inspectTime = 9;
+      this.sfx.blip();
+    }
+  }
+
+  /** Suit outside, uniform inside: the change blends while crossing an EVA hatch. */
+  private updateLunarSuit(dt: number): void {
+    const target = onSurface(this.player.y) ? 1 : 0;
+    const step = dt / 0.6;
+    this.suitBlend = target > this.suitBlend ? Math.min(target, this.suitBlend + step) : Math.max(target, this.suitBlend - step);
+    this.player.suitBlend = this.suitBlend;
+  }
+
   private updateIntro(dt: number): void {
     this.intro = Math.max(0, this.intro - dt);
     this.banner = Math.max(0, this.banner - dt);
@@ -716,7 +811,7 @@ export class Game {
       this.ui.setPrompt(null);
       return;
     }
-    const aboveActor = this.actors.some((actor) => actor.id === target.id);
+    const aboveActor = this.people().some((actor) => actor.id === target.id);
     const lift = (aboveActor ? 132 : 20) * this.zoom;
     const side = 0;
     const x = (target.promptX - this.cameraX) * this.zoom + side;
@@ -726,8 +821,7 @@ export class Game {
 
   private nearest(): Target | null {
     let best: Target | null = null;
-    const people = this.scene === "ship" ? this.actors.filter((actor) => actor.id === "riley") : this.actors;
-    for (const actor of people) {
+    for (const actor of this.people()) {
       if (!actor.interactive) continue;
       const dist = Math.hypot(actor.x - this.player.x, actor.y - this.player.y);
       if (dist > actor.radius) continue;
@@ -739,7 +833,7 @@ export class Game {
       if (!prop.prompt || !prop.radius) continue;
       if (prop.id === "radio" && this.mission.radioAcquired) continue;
       if (prop.id === "suit" && this.mission.suitEquipped) continue;
-      const anchor = propAnchor(prop);
+      const anchor = propAnchor(prop as PropDef);
       const dist = Math.hypot(anchor.x - this.player.x, anchor.y - this.player.y);
       if (dist > prop.radius) continue;
       if (!best || dist < best.dist) {
@@ -766,6 +860,7 @@ export class Game {
 
   private radioLabel(): string | null {
     if (!this.mission.radioAcquired) return null;
+    if (this.scene === "lunar") return onSurface(this.player.y) ? "SUIT COMM LINK" : "RADIO LINKED";
     return this.mission.suitEquipped ? "SUIT COMM LINK" : "RADIO LINKED";
   }
 
@@ -799,8 +894,16 @@ export class Game {
     this.cameraY += (targetY - this.cameraY) * rate;
   }
 
-  private activeProps(): PropDef[] {
+  private activeProps(): (PropDef | LunarProp)[] {
+    if (this.scene === "lunar") return lunarProps;
     return this.scene === "ship" ? shipProps : props;
+  }
+
+  /** The people present in the current map (Riley travels with the player). */
+  private people(): Actor[] {
+    if (this.scene === "ship") return this.actors.filter((actor) => actor.id === "riley");
+    if (this.scene === "lunar") return [...this.lunarActors, this.actor("riley")];
+    return this.actors;
   }
 
   private isLocked(): boolean {

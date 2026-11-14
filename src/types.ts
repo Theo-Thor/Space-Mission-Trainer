@@ -30,7 +30,10 @@ export type Look =
   | "nia"
   | "riley"
   | "crew"
-  | "crew2";
+  | "crew2"
+  | "jun"
+  | "mara"
+  | "omar";
 
 export interface DialogueLine {
   speaker: string;

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flight Preview</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #070c16; color: #e8eff5; font-family: "Segoe UI", sans-serif; overflow: hidden; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      #bar { position: fixed; left: 50%; bottom: 3.5vh; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;
+        background: rgba(12, 20, 34, 0.9); border: 1px solid rgba(85, 213, 233, 0.5); border-radius: 999px; padding: 6px 14px; }
+      #bar button { background: #17304a; color: #55d5e9; border: 1px solid rgba(85, 213, 233, 0.5); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+      #bar input { width: min(46vw, 520px); }
+      #time { font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: right; }
+      body.still #bar { display: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="bar">
+      <button id="play" type="button">Pause</button>
+      <input id="scrub" type="range" min="0" step="0.01" value="0" />
+      <span id="time">0.0 s</span>
+    </div>
+    <!-- Preview only: the game still plays the original flight until this version is approved. -->
+    <script type="module" src="/src/voyage-preview.ts"></script>
+  </body>
+</html>

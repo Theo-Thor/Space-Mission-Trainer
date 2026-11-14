@@ -150,10 +150,10 @@ async function main() {
       }
       assert.equal((await snapshot()).phase,expectedPhase);
     }
-    await talk('chen','NEED_COMMUNICATIONS_BRIEFING');
-    await talk('leo','NEED_RADIO_PICKUP');
-    await evaluate('window.__SELENE__.interact("radio")');
+    // Free-roam Chapter 1: the radio is on from the start and talks never change the phase.
     assert((await snapshot()).radioAcquired);
+    await talk('chen','NEED_SUIT_EQUIPPING');
+    await talk('leo','NEED_SUIT_EQUIPPING');
     await talk('nia','NEED_SUIT_EQUIPPING');
     await evaluate('window.__SELENE__.teleport(1885,900); window.__SELENE__.interact("suit")');
     await until('window.__SELENE__.snapshot().suitEquipped','Equipment sequence did not complete');

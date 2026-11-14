@@ -87,15 +87,15 @@ export const DIALOGUES: Record<string, DialogueScript> = {
         "DR. MAYA CHEN",
         "Every decision matters. Equipment, energy, communication, and preparation can determine what a mission is able to accomplish.",
       ),
-      line("DR. MAYA CHEN", "Before we depart, collect your communications unit from Engineer Voss."),
-      line("DR. MAYA CHEN", "Then report to Suit Preparation. Technician Brooks will complete your final equipment checks."),
-      line("{playerName}", "Understood, Doctor. I'll head to Communications."),
+      line("DR. MAYA CHEN", "Your communications unit is already linked. Engineer Voss paired it before you arrived."),
+      line("DR. MAYA CHEN", "When you're ready, report to Suit Preparation. Technician Brooks will complete your final equipment checks."),
+      line("{playerName}", "Understood, Doctor. I'll head to Suit Preparation."),
       line("DR. MAYA CHEN", "Excellent. We'll be counting on you."),
     ],
   },
   CHEN_BEFORE_RADIO: {
     id: "CHEN_BEFORE_RADIO",
-    lines: [line("DR. MAYA CHEN", "Engineer Voss is waiting in Communications. Your equipment checks come next.")],
+    lines: [line("DR. MAYA CHEN", "Technician Brooks is ready for you in Suit Preparation whenever you are.")],
   },
   CHEN_AFTER_SUIT: {
     id: "CHEN_AFTER_SUIT",
@@ -130,7 +130,7 @@ export const DIALOGUES: Record<string, DialogueScript> = {
     lines: [
       line("LEO VOSS", "There you are, {playerName}. I was starting to think you'd taken a wrong turn."),
       line("LEO VOSS", "I'm Leo, communications engineering."),
-      line("LEO VOSS", "I've prepared your personal communications unit."),
+      line("LEO VOSS", "That unit on your wrist? I paired it before you arrived."),
       line(
         "LEO VOSS",
         "It's a compact wrist module. You'll be able to use it here, and it'll pair with your suit's communication system later.",
@@ -140,9 +140,8 @@ export const DIALOGUES: Record<string, DialogueScript> = {
         "LEO VOSS",
         "Of course, communications are never something we take for granted. Terrain and equipment limitations can make things complicated.",
       ),
-      line("LEO VOSS", "But let's start with something simple."),
-      line("LEO VOSS", "Your unit is on the illuminated tray. Pick it up and we'll test the connection."),
-      line("{playerName}", "Got it. Let's see if it works."),
+      line("LEO VOSS", "Signal looks good from here. You're connected to Mission Control."),
+      line("{playerName}", "Thanks, Leo."),
     ],
   },
   LEO_BEFORE_PICKUP: {
@@ -159,7 +158,7 @@ export const DIALOGUES: Record<string, DialogueScript> = {
       line("NIA BROOKS", "Welcome to Suit Preparation, {playerName}."),
       line("NIA BROOKS", "I'm Nia. I'll be handling your final equipment checks."),
       line("NIA BROOKS", "Your spacesuit has been configured for the mission, but we still need to complete the readiness sequence."),
-      line("NIA BROOKS", "The communications unit you collected will pair with the suit once it's equipped."),
+      line("NIA BROOKS", "Your communications unit will pair with the suit once it's equipped."),
       line("NIA BROOKS", "Step into the preparation station and activate the equipment interface."),
       line("NIA BROOKS", "Don't worry. We'll keep this part straightforward."),
       line("{playerName}", "Sounds good. Let's get started."),
@@ -189,6 +188,17 @@ export const DIALOGUES: Record<string, DialogueScript> = {
       line("RILEY MORGAN", "I'll head toward the hatch. Follow me when you're ready."),
       line("{playerName}", "Lead the way."),
       line("RILEY MORGAN", "That's the spirit. Let's go."),
+    ],
+  },
+  CREWMATE_MEETING_EARLY: {
+    id: "CREWMATE_MEETING_EARLY",
+    lines: [
+      line("RILEY MORGAN", "Hey! {playerName}, right?"),
+      line("RILEY MORGAN", "I'm Riley. Looks like we'll be sharing a spacecraft."),
+      line("{playerName}", "Good to finally meet you."),
+      line("RILEY MORGAN", "Likewise. Don't forget your suit. Technician Brooks has it ready."),
+      line("RILEY MORGAN", "I'll head toward the hatch. Meet me there when you're ready."),
+      line("{playerName}", "See you there."),
     ],
   },
   RILEY_WALKING: {

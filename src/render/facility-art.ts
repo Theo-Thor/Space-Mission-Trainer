@@ -14,7 +14,14 @@ const colors: Record<string, [string, string]> = {
   reception: ["#43566b", "#34465b"], lobby: ["#344b60", "#2a3e50"],
   briefing: ["#43566b", "#34475d"], comms: ["#304c59", "#253d4c"],
   suit: ["#4a5260", "#3b4350"], boarding: ["#2d414e", "#21333f"],
+  // Selene Base (Moon)
+  "lu-hall": ["#4a5f76", "#394d63"], "lu-lab": ["#304c59", "#253d4c"], "lu-ind": ["#4a5260", "#3b4350"], "lu-hab": ["#43566b", "#34465b"],
+  "lu-green": ["#2f5148", "#233f38"], "lu-com": ["#304c59", "#253d4c"], "lu-pow": ["#2d414e", "#21333f"], "lu-air": ["#4a5260", "#3b4350"],
+  "lu-gar": ["#2d414e", "#21333f"], "lu-med": ["#43566b", "#34475d"], "lu-vh": ["#364b60", "#2b3e52"], "lu-wh": ["#364b60", "#2b3e52"],
+  "lu-eh": ["#364b60", "#2b3e52"], "lu-gwh": ["#364b60", "#2b3e52"], "lu-geh": ["#364b60", "#2b3e52"], "lu-awh": ["#364b60", "#2b3e52"],
+  "lu-aeh": ["#364b60", "#2b3e52"],
 };
+type Footprint = { x: number; y: number; w: number; h: number; blocks: boolean; kind: string };
 const codes: Record<string, string> = { reception: "01", lobby: "02", briefing: "03", comms: "04", suit: "05", boarding: "06" };
 
 function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string | CanvasGradient, radius = 3): void {
@@ -75,10 +82,10 @@ function floorInsignia(ctx: CanvasRenderingContext2D, room: Room): void {
   }
   ctx.textAlign = "left"; ctx.fillStyle = "rgba(195,215,224,0.15)";
   ctx.font = "600 32px Segoe UI, sans-serif";
-  ctx.fillText(codes[room.id], room.w - 90, 108);
+  ctx.fillText(codes[room.id] ?? "", room.w - 90, 108);
 }
 
-function bakeRoom(room: Room): HTMLCanvasElement {
+function bakeRoom(room: Room, roomProps: Footprint[]): HTMLCanvasElement {
   const canvas = document.createElement("canvas"); canvas.width = room.w; canvas.height = room.h;
   const ctx = canvas.getContext("2d")!;
   panel(ctx, 0, 0, room.w, room.h, "#101c2a", 8);
@@ -107,7 +114,7 @@ function bakeRoom(room: Room): HTMLCanvasElement {
     ctx.fillStyle = glow; ctx.fillRect(28, 28, room.w - 56, room.h - 56);
   }
   // Insets ground existing furniture without changing its world footprint.
-  for (const prop of props.filter(p => p.x >= room.x + 28 && p.x < room.x + room.w - 28 && p.y >= room.y + 28 && p.y < room.y + room.h - 28 && p.blocks)) {
+  for (const prop of roomProps.filter(p => p.x >= room.x + 28 && p.x < room.x + room.w - 28 && p.y >= room.y + 28 && p.y < room.y + room.h - 28 && p.blocks)) {
     if (prop.kind === "plant" || prop.kind === "moon") continue;
     const x = prop.x - room.x; const y = prop.y - room.y;
     panel(ctx, x - 8, y - 6, prop.w + 16, prop.h + 14, "rgba(10,22,32,0.13)", 3);
@@ -129,10 +136,10 @@ function bakeRoom(room: Room): HTMLCanvasElement {
   return canvas;
 }
 
-export function drawFacilityShell(ctx: CanvasRenderingContext2D, room: Room): boolean {
-  if (!facilityRooms.has(room.id)) return false;
+export function drawFacilityShell(ctx: CanvasRenderingContext2D, room: Room, roomProps: Footprint[] = props): boolean {
+  if (!colors[room.id]) return false;
   let surface = surfaces.get(room.id);
-  if (!surface) { surface = bakeRoom(room); surfaces.set(room.id, surface); }
+  if (!surface) { surface = bakeRoom(room, roomProps); surfaces.set(room.id, surface); }
   ctx.drawImage(surface, room.x, room.y);
   return true;
 }

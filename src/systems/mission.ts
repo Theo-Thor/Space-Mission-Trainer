@@ -21,11 +21,12 @@ export interface MissionSignals {
 }
 
 export class Mission {
-  phase: Phase = "NEED_BRIEFING";
+  // Free-roam Chapter 1: the suit and boarding are open from the start; talks are optional.
+  phase: Phase = "NEED_SUIT_EQUIPPING";
   playerName = "";
   briefingCompleted = false;
-  radioAcquired = false;
-  radioActive = false;
+  radioAcquired = true; // the player starts with the personal radio
+  radioActive = true;
   suitEquipped = false;
   companionMet = false;
   companionAtHatch = false;
@@ -36,7 +37,9 @@ export class Mission {
   seated = false;
   valTalked = false;
   patelTalked = false;
-  objective: string = OBJECTIVES.briefing;
+  leoTalked = false;
+  niaTalked = false;
+  objective: string = OBJECTIVES.suitEquip;
   private boardingStarted = false;
 
   constructor(private readonly signals: MissionSignals) {}
@@ -61,7 +64,7 @@ export class Mission {
         }
         return { kind: "dialogue", id: "RECEPTION_REPEAT" };
       case "chen":
-        if (this.phase === "NEED_BRIEFING") return { kind: "dialogue", id: "MISSION_BRIEFING" };
+        if (!this.briefingCompleted) return { kind: "dialogue", id: "MISSION_BRIEFING" };
         if (this.suitEquipped) return { kind: "dialogue", id: "CHEN_AFTER_SUIT" };
         return { kind: "dialogue", id: "CHEN_BEFORE_RADIO" };
       case "patel":
@@ -71,11 +74,10 @@ export class Mission {
         }
         return { kind: "dialogue", id: "SCIENCE_REPEAT" };
       case "leo":
-        if (this.phase === "NEED_COMMUNICATIONS_BRIEFING") return { kind: "dialogue", id: "COMMUNICATIONS_BRIEFING" };
-        if (!this.briefingCompleted) {
-          return { kind: "toast", title: "MISSION BRIEFING", body: "Dr. Chen is expecting you in the briefing room first." };
+        if (!this.leoTalked) {
+          this.leoTalked = true;
+          return { kind: "dialogue", id: "COMMUNICATIONS_BRIEFING" };
         }
-        if (!this.radioAcquired) return { kind: "dialogue", id: "LEO_BEFORE_PICKUP" };
         return { kind: "dialogue", id: "LEO_AFTER" };
       case "radio":
         if (this.radioAcquired) {
@@ -86,39 +88,29 @@ export class Mission {
         }
         return { kind: "pickup" };
       case "nia":
-        if (this.phase === "NEED_SUIT_TECHNICIAN") return { kind: "dialogue", id: "SUIT_PREPARATION_BRIEFING" };
-        if (this.phase === "NEED_SUIT_EQUIPPING") return { kind: "dialogue", id: "NIA_WAITING" };
         if (this.suitEquipped) return { kind: "dialogue", id: "NIA_REPEAT" };
-        return { kind: "toast", title: "SUIT PREPARATION", body: "Complete your communications steps before reporting here." };
+        if (!this.niaTalked) {
+          this.niaTalked = true;
+          return { kind: "dialogue", id: "SUIT_PREPARATION_BRIEFING" };
+        }
+        return { kind: "dialogue", id: "NIA_WAITING" };
       case "suit":
         if (this.suitEquipped) {
           return { kind: "toast", title: "SPACESUIT ALREADY EQUIPPED", body: "Your equipment checks are already complete." };
-        }
-        if (this.phase !== "NEED_SUIT_EQUIPPING") {
-          return { kind: "toast", title: "SUIT PREPARATION", body: "Technician Brooks has to clear you before the station will start." };
         }
         return { kind: "equip" };
       case "riley":
         if (this.aboard && this.seated) return { kind: "dialogue", id: "RILEY_STANDBY" };
         if (this.aboard) return { kind: "dialogue", id: "RILEY_ABOARD" };
-        if (this.phase === "NEED_CREWMATE_MEETING") return { kind: "dialogue", id: "CREWMATE_MEETING" };
-        if (this.companionMet && !this.companionAtHatch) return { kind: "dialogue", id: "RILEY_WALKING" };
-        if (this.companionMet && this.companionAtHatch && this.phase === "NEED_BOARDING") {
-          return { kind: "dialogue", id: "RILEY_AT_HATCH" };
-        }
-        return { kind: "toast", title: "CREWMATE", body: "Finish your preparation before meeting Riley." };
+        if (!this.companionMet) return { kind: "dialogue", id: this.suitEquipped ? "CREWMATE_MEETING" : "CREWMATE_MEETING_EARLY" };
+        if (!this.companionAtHatch) return { kind: "dialogue", id: "RILEY_WALKING" };
+        return { kind: "dialogue", id: "RILEY_AT_HATCH" };
       case "hatch":
-        if (this.chapterCompleted) return { kind: "toast", title: "BOARDING", body: "You are already aboard." };
-        if (!this.briefingCompleted || !this.radioAcquired || !this.suitEquipped || !this.companionMet) {
-          return {
-            kind: "toast",
-            title: "BOARDING",
-            body: "Boarding authorization pending. Complete your preparation objectives.",
-          };
-        }
-        if (!this.companionAtHatch) {
-          return { kind: "toast", title: "BOARDING", body: "Your crewmate is approaching the boarding hatch." };
-        }
+        if (this.chapterCompleted || this.aboard) return { kind: "toast", title: "BOARDING", body: "You are already aboard." };
+        // Boarding is open at any time; Riley joins at the hatch.
+        this.companionMet = true;
+        this.companionAtHatch = true;
+        this.phase = "NEED_BOARDING";
         return { kind: "dialogue", id: "FINAL_BOARDING" };
       case "moon":
         return {
@@ -157,23 +149,10 @@ export class Mission {
   }
 
   completeDialogue(id: string): void {
-    if (id === "MISSION_BRIEFING" && !this.briefingCompleted) {
-      this.briefingCompleted = true;
-      this.phase = "NEED_COMMUNICATIONS_BRIEFING";
-      this.advance(OBJECTIVES.comms);
-    }
-    if (id === "COMMUNICATIONS_BRIEFING" && this.phase === "NEED_COMMUNICATIONS_BRIEFING") {
-      this.phase = "NEED_RADIO_PICKUP";
-      this.advance(OBJECTIVES.radio);
-    }
-    if (id === "SUIT_PREPARATION_BRIEFING" && this.phase === "NEED_SUIT_TECHNICIAN") {
-      this.phase = "NEED_SUIT_EQUIPPING";
-      this.advance(OBJECTIVES.suitEquip);
-    }
-    if (id === "CREWMATE_MEETING" && this.phase === "NEED_CREWMATE_MEETING") {
+    // Talks are optional and no longer gate anything.
+    if (id === "MISSION_BRIEFING") this.briefingCompleted = true;
+    if ((id === "CREWMATE_MEETING" || id === "CREWMATE_MEETING_EARLY") && !this.companionMet) {
       this.companionMet = true;
-      this.phase = "NEED_BOARDING";
-      this.advance(OBJECTIVES.hatch);
       this.signals.onRileyWalk();
       this.signals.onRadios(["R004"], 0.45);
     }
@@ -198,9 +177,9 @@ export class Mission {
   finishSuit(): void {
     if (this.suitEquipped) return;
     this.suitEquipped = true;
-    this.phase = "NEED_CREWMATE_MEETING";
+    this.phase = "NEED_BOARDING";
     this.signals.onToast("SPACESUIT EQUIPPED", "COMMUNICATIONS CONNECTED");
-    this.advance(OBJECTIVES.crew);
+    this.advance(OBJECTIVES.hatch);
     this.signals.onRadios(["R003"], 0.45);
   }
 
@@ -217,6 +196,7 @@ export class Mission {
   arriveShip(): void {
     if (this.aboard) return;
     this.aboard = true;
+    this.suitEquipped = true; // boarding without visiting the suit station still flies suited
     this.phase = "NEED_FLIGHT_SYSTEMS";
     this.objective = OBJECTIVES.flight;
     this.signals.onObjective(this.objective);
