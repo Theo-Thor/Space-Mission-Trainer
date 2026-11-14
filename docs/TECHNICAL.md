@@ -18,6 +18,8 @@ A game engine was not added. The chapter is one small map, and the interface is 
 - `src/render/draw.ts` draws the facility and characters.
 - `src/render/player-art.ts` draws the approved directional player PNGs and the outfit transition; missing art falls back to shapes.
 - `src/render/facility-art.ts` renders the illustrated equipment kit, cached wall/floor surfaces and doorway frames. See `public/assets/facility/README.md` for asset packaging and extension notes.
+- `src/content/voyage.ts` holds the flight sequence timeline, phase labels, sound cues, and the sourced on-screen facts.
+- `src/render/voyage-art.ts` draws the flight sequence on the same canvas. Scenes use a 1280 × 720 stage scaled to cover the screen; the phase panel and fact card are drawn in screen space.
 - `src/ui/surface.ts` updates the HTML panels.
 
 ## Progress
@@ -25,6 +27,8 @@ A game engine was not added. The chapter is one small map, and the interface is 
 The chapter moves through briefing, communications, radio pickup, suit preparation, meeting Riley, and boarding. Required actions cannot be completed out of order. Optional talks with Val Ortiz and Dr. Patel do not change the objective.
 
 Riley walks a fixed two-point path. There is no pathfinding.
+
+Aboard the spacecraft the player checks flight systems, verifies communications, and takes the seat. When Mission Control's final radio call (R007) finishes, `Game.finishChapter` marks the chapter complete and shows the Chapter 1 card. The flight sequence starts after 6 seconds or when the player presses Begin Launch. It runs for `VOYAGE_DURATION` (22.5 s), plays its sound cues from `CUES`, and ends on the touchdown card. Esc or Skip jumps to the end.
 
 Refreshing the page starts the chapter again. The astronaut name is stored locally so the form can be prefilled. Progress is not restored, because a half-saved chapter could skip a conversation and lock the story.
 
@@ -35,6 +39,6 @@ The title card is a separate HTML composition. It is not the game engine. The ga
 ## Known limits
 
 - The player uses illustrated PNG idle poses and four-frame directional walk cycles for both outfits. NPCs still use animated shapes.
-- Sound is a few generated tones, with a mute button. There is no music.
+- Sound is a few generated tones, with a mute button. There is no music. The flight sequence adds a filtered-noise launch rumble, countdown beeps, descent pulses, and a touchdown chime. Exterior space shots stay nearly silent, because sound does not travel in a vacuum.
 - The reception doorway has a reusable automatic sliding door with panel collision. Other room openings remain decorative.
-- `window.__SELENE__` exposes teleport, interact, and snapshot helpers for local testing.
+- `window.__SELENE__` exposes teleport, interact, snapshot, `voyage()` and `skipVoyage()` helpers for local testing.

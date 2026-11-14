@@ -3,6 +3,8 @@ import { AutomaticDoor, actorFootprint } from "./systems/doors";
 import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD, type PropDef } from "./content/world";
 import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, RILEY_SPAWN, SHIP_LOOK, SHIP_SPAWN, SHIP_WORLD, shipObstacles, shipProps, shipRoomAt, shipWalkable } from "./content/ship";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
+import { drawVoyage } from "./render/voyage-art";
+import { CUES, VOYAGE_DURATION } from "./content/voyage";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
 import { RadioQueue } from "./systems/radio";
@@ -101,7 +103,11 @@ export class Game {
   private rileyWalking = false;
   private rileyIndex = 0;
   private rileyShip: "facility" | "hold" | "enter" | "wait" | "seat" | "seated" = "facility";
-  private scene: "facility" | "ship" = "facility";
+  private scene: "facility" | "ship" | "voyage" = "facility";
+  private voyageT = 0;
+  private voyageCue = 0;
+  private voyageDone = false;
+  private completeTimer = -1;
   private shipFade = 0;
   private flightActive = false;
   private flightT = 0;
@@ -241,12 +247,23 @@ export class Game {
       suitBlend: this.suitBlend,
       scene: this.scene,
       seated: this.seated,
+      voyageT: Math.round(this.voyageT * 100) / 100,
+      voyageDone: this.voyageDone,
     };
   }
 
   update(dt: number): void {
     if (!this.started) return;
     this.time += dt;
+    if (this.scene === "voyage") {
+      this.updateVoyage(dt);
+      this.keys.endFrame();
+      return;
+    }
+    if (this.completeTimer > 0) {
+      this.completeTimer -= dt;
+      if (this.completeTimer <= 0) this.startVoyage();
+    }
     this.interactLock = Math.max(0, this.interactLock - dt);
     this.ui.update(dt);
 
@@ -293,6 +310,10 @@ export class Game {
   draw(): void {
     if (!this.started) {
       drawStars(this.ctx, this.viewW, this.viewH, this.time);
+      return;
+    }
+    if (this.scene === "voyage") {
+      drawVoyage(this.ctx, this.viewW, this.viewH, this.voyageT);
       return;
     }
     const paintActors = (this.scene === "ship" ? this.actors.filter((actor) => actor.id === "riley") : this.actors).map((actor) => ({ ...actor }));
@@ -598,6 +619,7 @@ export class Game {
       this.commsBeat = "done";
       this.mission.finishComms();
     }
+    if (state.completedId === "R007") this.finishChapter();
     if (!state.changed) return;
     if (state.visible && state.message) {
       this.ui.showRadio(state.message.sender, state.message.text);
@@ -608,6 +630,61 @@ export class Game {
       return;
     }
     this.ui.hideRadio();
+  }
+
+  /** Seated, launch authorized: show the Chapter 1 card, then roll the Earth-to-Moon sequence. */
+  private finishChapter(): void {
+    if (this.mission.chapterCompleted) return;
+    this.mission.completeChapter();
+    this.ui.hideRadio();
+    this.ui.setPrompt(null);
+    this.ui.setHudVisible(false);
+    this.ui.showComplete();
+    this.completeTimer = 6;
+  }
+
+  startVoyage(): void {
+    if (this.scene === "voyage") return;
+    if (!this.mission.chapterCompleted) this.mission.completeChapter();
+    this.completeTimer = -1;
+    this.scene = "voyage";
+    this.voyageT = 0;
+    this.voyageCue = 0;
+    this.voyageDone = false;
+    this.ui.hideComplete();
+    this.ui.hideRadio();
+    this.ui.setPrompt(null);
+    this.ui.setHudVisible(false);
+    this.ui.setFade(0);
+    this.ui.setVoyageSkip(true);
+    this.sfx.unlock();
+  }
+
+  skipVoyage(): void {
+    if (this.scene !== "voyage" || this.voyageDone) return;
+    this.voyageT = VOYAGE_DURATION;
+    this.voyageCue = CUES.length;
+    this.endVoyage();
+  }
+
+  private updateVoyage(dt: number): void {
+    if (this.voyageDone) return;
+    if (this.keys.consume("escape")) {
+      this.skipVoyage();
+      return;
+    }
+    this.voyageT = Math.min(VOYAGE_DURATION, this.voyageT + dt);
+    while (this.voyageCue < CUES.length && CUES[this.voyageCue].at <= this.voyageT) {
+      this.sfx.voyage(CUES[this.voyageCue].sound);
+      this.voyageCue += 1;
+    }
+    if (this.voyageT >= VOYAGE_DURATION) this.endVoyage();
+  }
+
+  private endVoyage(): void {
+    this.voyageDone = true;
+    this.ui.setVoyageSkip(false);
+    this.ui.showArrival(this.mission.playerName);
   }
 
   private updateIntro(dt: number): void {

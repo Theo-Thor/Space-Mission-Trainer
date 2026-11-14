@@ -40,6 +40,9 @@ export class Surface {
   private readonly flightReady = must<HTMLElement>("flight-ready");
   private readonly fade = must<HTMLElement>("fade");
   private readonly complete = must<HTMLElement>("complete");
+  private readonly voyageSkip = must<HTMLButtonElement>("skip-voyage");
+  private readonly arrival = must<HTMLElement>("arrival");
+  private readonly arrivalCrew = must<HTMLElement>("arrival-crew");
   private readonly mute = must<HTMLButtonElement>("mute");
   private toastTimer = 0;
   private toastQueue: { title: string; body: string; detail?: string }[] = [];
@@ -194,6 +197,19 @@ export class Surface {
   showComplete(): void {
     this.complete.hidden = false;
     this.fade.style.opacity = "1";
+  }
+
+  hideComplete(): void {
+    this.complete.hidden = true;
+  }
+
+  setVoyageSkip(visible: boolean): void {
+    this.voyageSkip.hidden = !visible;
+  }
+
+  showArrival(playerName: string): void {
+    this.arrivalCrew.textContent = `Welcome to the Moon, ${playerName} and Riley.`;
+    this.arrival.hidden = false;
   }
 
   setMuted(muted: boolean): void {

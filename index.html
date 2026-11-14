@@ -104,8 +104,24 @@
       <p class="brand">PROJECT SELENE</p>
       <h1>CHAPTER 1 COMPLETE</h1>
       <p class="brand-sub">THE JOURNEY BEGINS</p>
-      <p class="soon">LAUNCH SEQUENCE — COMING SOON</p>
-      <button id="replay" type="button">REPLAY CHAPTER</button>
+      <p class="soon">LAUNCH AUTHORIZED</p>
+      <div class="actions">
+        <button id="launch" type="button">BEGIN LAUNCH</button>
+        <button id="replay" type="button">REPLAY CHAPTER</button>
+      </div>
+    </section>
+
+    <button id="skip-voyage" type="button" hidden>Skip</button>
+
+    <section id="arrival" hidden>
+      <div class="card">
+        <p class="brand">PROJECT SELENE · 2048</p>
+        <h1>TOUCHDOWN</h1>
+        <p class="brand-sub">SELENE BASE — LUNAR SOUTH POLE</p>
+        <p id="arrival-crew"></p>
+        <p class="note">The craft, base, crew and year are fictional. The distance, travel time, gravity and south-pole facts come from NASA.</p>
+        <button id="arrival-replay" type="button">REPLAY CHAPTER</button>
+      </div>
     </section>
 
     <script type="module" src="/src/main.ts"></script>

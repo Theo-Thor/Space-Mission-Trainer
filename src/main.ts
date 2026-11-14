@@ -16,8 +16,11 @@ const mute = document.querySelector<HTMLButtonElement>("#mute");
 const restart = document.querySelector<HTMLButtonElement>("#restart");
 const replay = document.querySelector<HTMLButtonElement>("#replay");
 const skip = document.querySelector<HTMLButtonElement>("#skip-cine");
+const launch = document.querySelector<HTMLButtonElement>("#launch");
+const skipVoyage = document.querySelector<HTMLButtonElement>("#skip-voyage");
+const arrivalReplay = document.querySelector<HTMLButtonElement>("#arrival-replay");
 
-if (!canvas || !nameInput || !nameError || !verified || !welcome || !registration || !form || !cinematic || !video || !fade || !mute || !restart || !replay || !skip) {
+if (!canvas || !nameInput || !nameError || !verified || !welcome || !registration || !form || !cinematic || !video || !fade || !mute || !restart || !replay || !skip || !launch || !skipVoyage || !arrivalReplay) {
   throw new Error("The page is missing a required element");
 }
 
@@ -40,6 +43,9 @@ mute.addEventListener("click", () => {
 });
 restart.addEventListener("click", () => window.location.reload());
 replay.addEventListener("click", () => window.location.reload());
+arrivalReplay.addEventListener("click", () => window.location.reload());
+launch.addEventListener("click", () => game.startVoyage());
+skipVoyage.addEventListener("click", () => game.skipVoyage());
 
 function normalizeName(raw: string): string {
   return raw.replace(/[\u0000-\u001F\u007F]/g, "").trim().replace(/\s+/g, " ").slice(0, 24);
@@ -126,6 +132,8 @@ declare global {
       advance: () => void;
       snapshot: () => Record<string, unknown>;
       start: (name: string) => void;
+      voyage: () => void;
+      skipVoyage: () => void;
     };
   }
 }
@@ -141,6 +149,8 @@ window.__SELENE__ = {
     screen.video.pause();
     game.start(name);
   },
+  voyage: () => game.startVoyage(),
+  skipVoyage: () => game.skipVoyage(),
 };
 
 requestAnimationFrame(frame);

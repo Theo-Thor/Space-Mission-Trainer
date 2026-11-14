@@ -308,3 +308,37 @@ label { display: block; text-align: left; margin-bottom: 0.4rem; color: #b7c5d4;
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Earth-to-Moon sequence */
+#complete .actions { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+#launch, #skip-voyage, #arrival-replay {
+  border: 1px solid var(--line);
+  background: #17304a;
+  color: var(--cyan);
+  border-radius: 999px;
+  padding: 0.7rem 1.2rem;
+}
+#launch { background: var(--amber); color: #102033; font-weight: 700; border: 0; }
+#skip-voyage { position: fixed; right: 1.2rem; bottom: 1.2rem; z-index: 55; }
+#arrival {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(16, 27, 46, 0.55);
+  animation: arrive 0.8s ease;
+}
+#arrival .card {
+  max-width: 34rem;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.6rem 1.8rem;
+}
+#arrival h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0.3rem 0 0.6rem; letter-spacing: 0.06em; }
+#arrival-crew { margin: 1rem 0 0.4rem; font-weight: 600; }
+#arrival .note { color: #9eb0c2; font-size: 0.88rem; line-height: 1.45; margin: 0.4rem 0 1.2rem; }
+@keyframes arrive { from { opacity: 0; } to { opacity: 1; } }

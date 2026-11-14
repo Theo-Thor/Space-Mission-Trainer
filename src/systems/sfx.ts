@@ -35,6 +35,61 @@ export class Sfx {
     window.setTimeout(() => this.tone(480, 0.14, "sine", 0.03), 120);
   }
 
+  /** Generated tones for the Earth-to-Moon sequence. */
+  voyage(sound: "beep" | "liftoff" | "separation" | "burn" | "radio" | "pulse" | "touchdown"): void {
+    switch (sound) {
+      case "beep":
+        this.tone(880, 0.12, "sine", 0.04);
+        return;
+      case "liftoff":
+        this.tone(1320, 0.18, "sine", 0.04);
+        this.rumble(3.2, 0.09);
+        return;
+      case "separation":
+        this.tone(220, 0.08, "square", 0.02);
+        window.setTimeout(() => this.tone(160, 0.1, "triangle", 0.025), 70);
+        return;
+      case "burn":
+        this.rumble(1.6, 0.035);
+        return;
+      case "radio":
+        this.radio();
+        return;
+      case "pulse":
+        this.tone(110, 0.16, "triangle", 0.03);
+        return;
+      case "touchdown":
+        this.tone(90, 0.3, "triangle", 0.05);
+        window.setTimeout(() => this.tone(523, 0.4, "sine", 0.03), 350);
+        window.setTimeout(() => this.tone(784, 0.6, "sine", 0.03), 560);
+        return;
+    }
+  }
+
+  private rumble(duration: number, gain: number): void {
+    if (this.muted || !this.ctx) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(420, now);
+    filter.frequency.exponentialRampToValueAtTime(90, now + duration);
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(0.0001, now);
+    amp.gain.exponentialRampToValueAtTime(gain, now + 0.25);
+    amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    source.connect(filter);
+    filter.connect(amp);
+    amp.connect(ctx.destination);
+    source.start(now);
+    source.stop(now + duration + 0.05);
+  }
+
   footstep(dt: number, walking: boolean): void {
     if (!walking) {
       this.stepTime = 0;
