@@ -1,7 +1,7 @@
-// Stand-alone preview of the long flight (voyage-preview.html). Not part of the game.
+// Stand-alone preview of the flight sequence (voyage-preview.html), for reviewing shots. Not part of the game.
 // ?t=12.5 shows a still frame at that time with the controls hidden (used for storyboards).
-import { VOYAGE2_DURATION } from "./content/voyage2";
-import { drawVoyage2 } from "./render/voyage2-art";
+import { VOYAGE_DURATION } from "./content/voyage";
+import { drawVoyage } from "./render/voyage-art";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const ctx = canvas.getContext("2d")!;
@@ -13,7 +13,7 @@ const still = new URLSearchParams(location.search).get("t");
 let t = still ? Number(still) : 0;
 let playing = !still;
 if (still) document.body.classList.add("still");
-scrub.max = String(VOYAGE2_DURATION);
+scrub.max = String(VOYAGE_DURATION);
 
 function resize(): void {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -25,7 +25,7 @@ addEventListener("resize", resize);
 resize();
 
 play.addEventListener("click", () => {
-  if (t >= VOYAGE2_DURATION) t = 0;
+  if (t >= VOYAGE_DURATION) t = 0;
   playing = !playing;
 });
 scrub.addEventListener("input", () => {
@@ -39,22 +39,22 @@ function frame(now: number): void {
   last = now;
   if (playing) {
     t += dt;
-    if (t >= VOYAGE2_DURATION) {
-      t = VOYAGE2_DURATION;
+    if (t >= VOYAGE_DURATION) {
+      t = VOYAGE_DURATION;
       playing = false;
     }
   }
   play.textContent = playing ? "Pause" : "Play";
   scrub.value = String(t);
-  timeLabel.textContent = `${t.toFixed(1)} / ${VOYAGE2_DURATION} s`;
-  drawVoyage2(ctx, innerWidth, innerHeight, t);
+  timeLabel.textContent = `${t.toFixed(1)} / ${VOYAGE_DURATION} s`;
+  drawVoyage(ctx, innerWidth, innerHeight, t);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 declare global {
   interface Window {
-    __VOYAGE2__?: { seek: (time: number) => void };
+    __VOYAGE__?: { seek: (time: number) => void };
   }
 }
-window.__VOYAGE2__ = { seek: (time) => { t = time; playing = false; } };
+window.__VOYAGE__ = { seek: (time) => { t = time; playing = false; } };

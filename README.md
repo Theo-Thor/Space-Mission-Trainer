@@ -2,7 +2,7 @@
 
 A top-down chapter of a fictional lunar mission game for the NASA Space Apps Challenge 2026. The player registers, walks through a preparation facility on Earth, receives a radio, puts on a spacesuit, meets crewmate Riley Morgan, and boards the spacecraft.
 
-After the crew is seated and Mission Control authorizes launch, the Chapter 1 card appears. A 22-second animated flight follows: liftoff, booster separation, the coast to the Moon, lunar orbit, and a powered descent to Selene Base at the lunar south pole. It ends on a touchdown card. Four real NASA figures appear on screen during the flight; see `docs/SCIENCE.md`.
+After the crew is seated and Mission Control authorizes launch, the Chapter 1 card appears. A 33-second animated flight follows: countdown, liftoff, booster separation, the burn toward the Moon, the coast, Earthrise through the craft window, lunar orbit, and a powered descent to Selene Base at the lunar south pole, ending with a pull-back over the base and a touchdown card. Seven real NASA figures appear on screen during the flight; see `docs/SCIENCE.md`.
 
 This facility, crew, spacecraft, Selene Base, and the year 2048 are fictional. They are not NASA missions or certified hardware. See `docs/SCIENCE.md`.
 
