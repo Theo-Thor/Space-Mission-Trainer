@@ -1,6 +1,7 @@
 import { CharacterAnimator } from "./systems/animation";
 import { AutomaticDoor, actorFootprint } from "./systems/doors";
-import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD } from "./content/world";
+import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD, type PropDef } from "./content/world";
+import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, RILEY_SPAWN, SHIP_LOOK, SHIP_SPAWN, SHIP_WORLD, shipObstacles, shipProps, shipRoomAt, shipWalkable } from "./content/ship";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
@@ -72,8 +73,9 @@ export class Game {
   private readonly keys = new Keys();
   private readonly animator = new CharacterAnimator();
   private readonly automaticDoors = doors.filter(d => d.id === "to-reception").map(d => new AutomaticDoor(d));
-  private readonly areas = walkable();
-  private readonly blocks = obstacles();
+  private areas: Rect[] = walkable();
+  private blocks: Rect[] = obstacles();
+  private bounds = WORLD;
   private readonly actors: Actor[];
   private readonly player: Actor;
   private readonly radioTimers: { t: number; ids: string[] }[] = [];
@@ -98,6 +100,15 @@ export class Game {
   private hatchOpen = false;
   private rileyWalking = false;
   private rileyIndex = 0;
+  private rileyShip: "facility" | "hold" | "enter" | "wait" | "seat" | "seated" = "facility";
+  private scene: "facility" | "ship" = "facility";
+  private shipFade = 0;
+  private flightActive = false;
+  private flightT = 0;
+  private commsBeat: "idle" | "ask" | "reply" | "copy" | "done" = "idle";
+  private seatActive = false;
+  private seated = false;
+  private stationsLive = false;
   private inspectTime = 0;
   private lastRadio = "";
   private ctx: CanvasRenderingContext2D;
@@ -152,6 +163,10 @@ export class Game {
         this.rileyIndex = 0;
       },
       onBoard: () => this.beginBoarding(),
+      onRileySeat: () => {
+        this.rileyShip = "seat";
+        this.rileyIndex = 0;
+      },
     });
     this.resize();
   }
@@ -224,6 +239,8 @@ export class Game {
       walking: this.player.walking,
       facing: this.player.facing,
       suitBlend: this.suitBlend,
+      scene: this.scene,
+      seated: this.seated,
     };
   }
 
@@ -234,29 +251,34 @@ export class Game {
     this.ui.update(dt);
 
     if (this.dialogue.isOpen && (this.keys.consume("enter") || this.keys.consume(" "))) this.requestAdvance();
-    const locked = this.dialogue.isOpen || this.suitActive || this.boardActive;
+    const locked = this.isLocked();
     if (!locked && this.interactLock <= 0 && this.keys.consume("e")) {
       const target = this.nearest();
       if (target) this.handleInteract(target.id);
     }
 
-    for (const door of this.automaticDoors) door.update(dt, [this.player, ...this.actors].map(actorFootprint));
-    const movingLocked = this.dialogue.isOpen || this.suitActive || this.boardActive;
-    if (!movingLocked) this.movePlayer(dt);
+    if (this.scene === "facility") {
+      for (const door of this.automaticDoors) door.update(dt, [this.player, ...this.actors].map(actorFootprint));
+    }
+    if (!locked) this.movePlayer(dt);
     else this.player.walking = false;
+    if (this.seated) this.player.facing = "up";
     this.updateRiley(dt);
     this.updateSuit(dt);
+    this.updateFlight(dt);
+    this.updateSeat(dt);
     this.updateBoarding(dt);
     this.dialogue.update(dt);
-    this.syncDialogue();
     this.updateRadios(dt);
+    this.syncDialogue();
     this.updateIntro(dt);
     this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
     this.player.radioLight = this.mission.radioAcquired;
     this.player.label = "";
     for (const actor of [...this.actors, this.player]) this.animator.update(actor, dt);
     this.placeCamera(dt);
-    this.ui.setLocation(roomAt(this.player.x, this.player.y).label);
+    const here = this.scene === "ship" ? shipRoomAt(this.player.x, this.player.y) : roomAt(this.player.x, this.player.y);
+    this.ui.setLocation(here.label);
     this.ui.setRadioStatus(this.radioLabel());
     this.placePrompt(locked);
     if (this.inspectTime > 0) {
@@ -273,7 +295,7 @@ export class Game {
       drawStars(this.ctx, this.viewW, this.viewH, this.time);
       return;
     }
-    const paintActors = this.actors.map((actor) => ({ ...actor }));
+    const paintActors = (this.scene === "ship" ? this.actors.filter((actor) => actor.id === "riley") : this.actors).map((actor) => ({ ...actor }));
     drawWorld(this.ctx, {
       time: this.time,
       cameraX: this.cameraX,
@@ -282,18 +304,20 @@ export class Game {
       actors: paintActors,
       player: { ...this.player },
       highlight: this.highlight(),
-      focusRoom: focusFor(this.mission.objective),
+      focusRoom: this.scene === "ship" ? "cockpit" : focusFor(this.mission.objective),
       radioTaken: this.mission.radioAcquired,
       suitReady: this.mission.suitEquipped,
       hatchOpen: this.hatchOpen,
       doorOpenness: Object.fromEntries(this.automaticDoors.map(d => [d.definition.id, d.openness])),
       viewW: this.viewW,
       viewH: this.viewH,
+      scene: this.scene,
+      stationsLive: this.stationsLive,
     });
   }
 
   private handleInteract(id: string): void {
-    if (this.dialogue.isOpen || this.suitActive || this.boardActive) return;
+    if (this.isLocked()) return;
     const result = this.mission.resolve(id);
     const actor = this.actors.find((item) => item.id === id);
     if (actor) faceToward(actor, this.player);
@@ -325,6 +349,23 @@ export class Game {
       this.suitActive = true;
       this.suitT = 0;
       this.sfx.equip();
+      return;
+    }
+    if (result.kind === "flight") {
+      this.flightActive = true;
+      this.flightT = 0;
+      this.sfx.blip();
+      return;
+    }
+    if (result.kind === "comms") {
+      this.commsBeat = "ask";
+      this.radio.enqueue(this.mission.radioText("R005"));
+      this.sfx.blip();
+      return;
+    }
+    if (result.kind === "seat") {
+      this.seatActive = true;
+      this.sfx.blip();
     }
   }
 
@@ -366,7 +407,8 @@ export class Game {
     const inside = points.every(([px, py]) =>
       this.areas.some((area) => px >= area.x && py >= area.y && px <= area.x + area.w && py <= area.y + area.h),
     );
-    if (!inside || this.automaticDoors.some(door => door.blocks(box))) return true;
+    if (!inside) return true;
+    if (this.scene === "facility" && this.automaticDoors.some(door => door.blocks(box))) return true;
     return this.blocks.some(
       (block) => box.x < block.x + block.w && box.x + box.w > block.x && box.y < block.y + block.h && box.y + box.h > block.y,
     );
@@ -374,6 +416,10 @@ export class Game {
 
   private updateRiley(dt: number): void {
     const riley = this.actor("riley");
+    if (this.scene === "ship") {
+      this.updateShipRiley(riley, dt);
+      return;
+    }
     if (this.boardActive) {
       stepToward(riley, BOARD_TARGET.riley.x, BOARD_TARGET.riley.y, 150, dt);
       return;
@@ -393,6 +439,71 @@ export class Game {
     }
   }
 
+  private updateShipRiley(riley: Actor, dt: number): void {
+    if (this.rileyShip === "enter") {
+      const target = RILEY_ENTER[this.rileyIndex];
+      if (!target || stepToward(riley, target.x, target.y, 110, dt)) {
+        this.rileyIndex += 1;
+        if (this.rileyIndex >= RILEY_ENTER.length) {
+          this.rileyShip = "wait";
+          riley.walking = false;
+          riley.facing = "up";
+        }
+      }
+      return;
+    }
+    if (this.rileyShip === "seat") {
+      const target = RILEY_SEAT_PATH[this.rileyIndex];
+      if (!target || stepToward(riley, target.x, target.y, 120, dt)) {
+        this.rileyIndex += 1;
+        if (this.rileyIndex >= RILEY_SEAT_PATH.length) {
+          this.rileyShip = "seated";
+          riley.x = RILEY_SEAT_PATH[RILEY_SEAT_PATH.length - 1].x;
+          riley.y = RILEY_SEAT_PATH[RILEY_SEAT_PATH.length - 1].y;
+          riley.walking = false;
+          riley.facing = "up";
+          riley.seated = true;
+        }
+      }
+      return;
+    }
+    if (this.rileyShip === "seated") {
+      riley.facing = "up";
+      riley.seated = true;
+      riley.walking = false;
+      return;
+    }
+    riley.walking = false;
+  }
+
+  private updateFlight(dt: number): void {
+    if (!this.flightActive) return;
+    this.flightT += dt;
+    const step = this.flightT < 0.45 ? 1 : this.flightT < 0.95 ? 2 : this.flightT < 1.45 ? 3 : 4;
+    this.ui.showFlight(step);
+    if (this.flightT < 2.3) return;
+    this.flightActive = false;
+    this.ui.hideFlight();
+    this.mission.finishFlight();
+  }
+
+  private updateSeat(dt: number): void {
+    if (!this.seatActive) return;
+    const arrived = stepToward(this.player, PILOT_SEAT.x, PILOT_SEAT.y, 140, dt);
+    this.player.facing = "up";
+    if (!arrived) return;
+    this.seatActive = false;
+    this.seated = true;
+    this.player.seated = true;
+    this.player.walking = false;
+    this.player.facing = "up";
+    this.stationsLive = true;
+    this.mission.markSeated();
+    this.ui.pushToast("ALL SYSTEMS READY", "The crew is at station.");
+    this.ui.pushToast("AWAITING LAUNCH AUTHORIZATION", "Remain seated. Launch is not authorized.");
+    this.radio.enqueue(this.mission.radioText("R007"));
+  }
+
   private updateSuit(dt: number): void {
     if (!this.suitActive) return;
     this.suitT += dt;
@@ -407,25 +518,62 @@ export class Game {
   }
 
   private beginBoarding(): void {
-    if (this.boardActive || this.mission.chapterCompleted) return;
+    if (this.boardActive || this.scene === "ship") return;
     this.boardActive = true;
     this.boardT = 0;
     this.hatchOpen = true;
   }
 
   private updateBoarding(dt: number): void {
-    if (!this.boardActive || this.mission.chapterCompleted) return;
+    if (this.shipFade > 0) {
+      this.shipFade = Math.max(0, this.shipFade - dt);
+      this.ui.setFade(this.shipFade / 0.9);
+      if (this.shipFade === 0 && this.rileyShip === "hold") {
+        this.rileyShip = "enter";
+        this.rileyIndex = 0;
+      }
+    }
+    if (!this.boardActive || this.scene === "ship") return;
     this.boardT += dt;
     this.player.walking = true;
-
     stepToward(this.player, BOARD_TARGET.player.x, BOARD_TARGET.player.y, 150, dt);
     const fade = clamp((this.boardT - 1.15) / 0.75, 0, 1);
     this.ui.setFade(fade);
-    if (this.boardT > 2.35) {
-      this.mission.completeChapter();
-      this.ui.showComplete();
-      this.ui.setHudVisible(false);
+    if (this.boardT > 2.35) this.enterShip();
+  }
+
+  private enterShip(): void {
+    this.scene = "ship";
+    this.areas = shipWalkable();
+    this.blocks = shipObstacles();
+    this.bounds = SHIP_WORLD;
+    this.boardActive = false;
+    this.player.x = SHIP_SPAWN.x;
+    this.player.y = SHIP_SPAWN.y;
+    this.player.facing = "up";
+    this.player.walking = false;
+    this.player.suitBlend = 1;
+    this.suitBlend = 1;
+    this.animator.track(this.player);
+    const riley = this.actor("riley");
+    riley.x = RILEY_SPAWN.x;
+    riley.y = RILEY_SPAWN.y;
+    riley.facing = "up";
+    riley.walking = false;
+    riley.seated = false;
+    this.animator.track(riley);
+    for (const actor of this.actors) {
+      if (actor.id !== "riley") actor.interactive = false;
     }
+    this.mission.arriveShip();
+    this.ui.setBannerLines("SELENE SPACECRAFT", "PRE-LAUNCH OPERATIONS");
+    this.ui.setHudVisible(true);
+    this.intro = 0;
+    this.rileyShip = "hold";
+    this.rileyIndex = 0;
+    this.shipFade = 0.9;
+    this.ui.setFade(1);
+    this.placeCamera(0);
   }
 
   private updateRadios(dt: number): void {
@@ -438,6 +586,18 @@ export class Game {
       for (const id of timer.ids) this.radio.enqueue(this.mission.radioText(id));
     }
     const state = this.radio.tick(dt, this.dialogue.isOpen);
+    if (state.completedId === "R005" && this.commsBeat === "ask") {
+      this.commsBeat = "reply";
+      const script = this.mission.script("COMMS_CONFIRM");
+      this.dialogue.play(script, this.mission.playerName, () => {
+        this.commsBeat = "copy";
+        this.radio.enqueue(this.mission.radioText("R006"));
+      });
+    }
+    if (state.completedId === "R006" && this.commsBeat === "copy") {
+      this.commsBeat = "done";
+      this.mission.finishComms();
+    }
     if (!state.changed) return;
     if (state.visible && state.message) {
       this.ui.showRadio(state.message.sender, state.message.text);
@@ -454,7 +614,7 @@ export class Game {
     this.intro = Math.max(0, this.intro - dt);
     this.banner = Math.max(0, this.banner - dt);
     this.hint = Math.max(0, this.hint - dt);
-    this.ui.setBannerVisible(this.banner > 0);
+    this.ui.setBannerVisible(this.scene === "ship" || this.banner > 0);
     this.ui.setHintVisible(this.hint > 0.3);
     if (!this.announced && this.banner <= 0) {
       this.announced = true;
@@ -489,7 +649,8 @@ export class Game {
 
   private nearest(): Target | null {
     let best: Target | null = null;
-    for (const actor of this.actors) {
+    const people = this.scene === "ship" ? this.actors.filter((actor) => actor.id === "riley") : this.actors;
+    for (const actor of people) {
       if (!actor.interactive) continue;
       const dist = Math.hypot(actor.x - this.player.x, actor.y - this.player.y);
       if (dist > actor.radius) continue;
@@ -497,7 +658,7 @@ export class Game {
         best = { id: actor.id, x: actor.x, y: actor.y, promptX: actor.x, promptY: actor.y, radius: actor.radius, prompt: actor.prompt, dist };
       }
     }
-    for (const prop of props) {
+    for (const prop of this.activeProps()) {
       if (!prop.prompt || !prop.radius) continue;
       if (prop.id === "radio" && this.mission.radioAcquired) continue;
       if (prop.id === "suit" && this.mission.suitEquipped) continue;
@@ -521,7 +682,7 @@ export class Game {
   }
 
   private highlight(): { x: number; y: number } | null {
-    if (this.dialogue.isOpen || this.suitActive || this.boardActive) return null;
+    if (this.isLocked()) return null;
     const target = this.nearest();
     return target ? { x: target.x, y: target.y } : null;
   }
@@ -536,18 +697,21 @@ export class Game {
   }
 
   private placeCamera(dt: number): void {
-    this.zoom = clamp(this.viewW / 1100, 0.75, 1.25);
+    const seatedZoom = this.seated && this.scene === "ship";
+    this.zoom = seatedZoom ? clamp(this.viewW / 900, 1, 1.3) : clamp(this.viewW / 1100, 0.75, 1.25);
     const viewW = this.viewW / this.zoom;
     const viewH = this.viewH / this.zoom;
-    const followX = this.player.x - viewW / 2;
-    const followY = this.player.y - viewH / 2;
-    const introMix = clamp(this.intro / 2.5, 0, 1);
+    const lookX = seatedZoom ? SHIP_LOOK.x : this.player.x;
+    const lookY = seatedZoom ? SHIP_LOOK.y : this.player.y;
+    const followX = lookX - viewW / 2;
+    const followY = lookY - viewH / 2;
+    const introMix = this.scene === "facility" ? clamp(this.intro / 2.5, 0, 1) : 0;
     let targetX = followX * (1 - introMix) + (INTRO_FOCUS.x - viewW / 2) * introMix;
     let targetY = followY * (1 - introMix) + (INTRO_FOCUS.y - viewH / 2) * introMix;
-    if (viewW >= WORLD.width) targetX = (WORLD.width - viewW) / 2;
-    else targetX = clamp(targetX, 0, WORLD.width - viewW);
-    if (viewH >= WORLD.height) targetY = (WORLD.height - viewH) / 2;
-    else targetY = clamp(targetY, 0, WORLD.height - viewH);
+    if (viewW >= this.bounds.width) targetX = (this.bounds.width - viewW) / 2;
+    else targetX = clamp(targetX, 0, this.bounds.width - viewW);
+    if (viewH >= this.bounds.height) targetY = (this.bounds.height - viewH) / 2;
+    else targetY = clamp(targetY, 0, this.bounds.height - viewH);
     if (dt <= 0) {
       this.cameraX = targetX;
       this.cameraY = targetY;
@@ -556,6 +720,14 @@ export class Game {
     const rate = 1 - Math.exp(-6 * dt);
     this.cameraX += (targetX - this.cameraX) * rate;
     this.cameraY += (targetY - this.cameraY) * rate;
+  }
+
+  private activeProps(): PropDef[] {
+    return this.scene === "ship" ? shipProps : props;
+  }
+
+  private isLocked(): boolean {
+    return this.dialogue.isOpen || this.suitActive || this.boardActive || this.flightActive || this.seatActive || this.seated || this.shipFade > 0 || this.commsBeat === "ask" || this.commsBeat === "reply" || this.commsBeat === "copy";
   }
 
   private actor(id: string): Actor {

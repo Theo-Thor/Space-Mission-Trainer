@@ -8,6 +8,10 @@ export type Phase =
   | "NEED_SUIT_EQUIPPING"
   | "NEED_CREWMATE_MEETING"
   | "NEED_BOARDING"
+  | "NEED_FLIGHT_SYSTEMS"
+  | "NEED_COMMS_VERIFY"
+  | "NEED_SEAT"
+  | "AWAITING_LAUNCH"
   | "CHAPTER_COMPLETE";
 
 export interface Rect {

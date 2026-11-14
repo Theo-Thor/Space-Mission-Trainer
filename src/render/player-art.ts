@@ -104,7 +104,7 @@ export function drawPlayerArt(ctx: CanvasRenderingContext2D, actor: PaintActor, 
   ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   // Reuse the existing gait/lean envelope; the approved frames remain intact.
-  ctx.translate(0, -Math.abs(Math.sin(actor.walkPhase)) * gait * 0.9);
+  ctx.translate(0, -Math.abs(Math.sin(actor.walkPhase)) * gait * 0.9 + (actor.seated ? 8 : 0));
   ctx.rotate(actor.lean ?? 0);
   ctx.scale(1 + breath * 0.004, 1 + breath * 0.006);
   ctx.imageSmoothingEnabled = true;

@@ -113,7 +113,7 @@ function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (!game.started) game.warm(dt);
-  else if (!game.mission.chapterCompleted) game.update(dt);
+  else game.update(dt);
   game.draw();
   requestAnimationFrame(frame);
 }

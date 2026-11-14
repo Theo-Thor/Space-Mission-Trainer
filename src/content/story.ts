@@ -9,6 +9,10 @@ export const OBJECTIVES = {
   crew: "Meet Your Crewmate",
   hatch: "Proceed to the Boarding Hatch",
   board: "Board the Spacecraft",
+  flight: "Check Flight Systems",
+  commsVerify: "Verify Communications",
+  seat: "Take Your Seat",
+  standby: "Awaiting Launch Authorization",
 } as const;
 
 export const RADIO_LINES: Record<string, { sender: string; text: string }> = {
@@ -27,6 +31,18 @@ export const RADIO_LINES: Record<string, { sender: string; text: string }> = {
   R004: {
     sender: "MISSION CONTROL",
     text: "Crew boarding is authorized. Proceed to the spacecraft access hatch.",
+  },
+  R005: {
+    sender: "MISSION CONTROL",
+    text: "Selene crew, this is Mission Control. Confirm communications status.",
+  },
+  R006: {
+    sender: "MISSION CONTROL",
+    text: "Copy, Selene. Communications verified. Proceed to your stations.",
+  },
+  R007: {
+    sender: "MISSION CONTROL",
+    text: "Selene crew, final checks complete. Remain on standby for launch authorization.",
   },
 };
 
@@ -185,6 +201,18 @@ export const DIALOGUES: Record<string, DialogueScript> = {
       line("RILEY MORGAN", "There it is. The spacecraft is ready for us."),
       line("RILEY MORGAN", "Whenever you're ready, head to the boarding hatch."),
     ],
+  },
+  COMMS_CONFIRM: {
+    id: "COMMS_CONFIRM",
+    lines: [line("{playerName}", "Mission Control, communications are clear. Standing by for final instructions.")],
+  },
+  RILEY_ABOARD: {
+    id: "RILEY_ABOARD",
+    lines: [line("RILEY MORGAN", "We're aboard. I'll take the right seat after communications are verified.")],
+  },
+  RILEY_STANDBY: {
+    id: "RILEY_STANDBY",
+    lines: [line("RILEY MORGAN", "Standing by. We wait for launch authorization.")],
   },
   FINAL_BOARDING: {
     id: "FINAL_BOARDING",

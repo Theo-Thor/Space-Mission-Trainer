@@ -1,5 +1,6 @@
 import { doorPanels } from "../systems/doors";
 import { drawPlayerArt } from "./player-art";
+import { drawShipInterior } from "./ship-art";
 import { drawFacilityShell, drawFacilityProp, drawFacilityThreshold } from "./facility-art";
 import type { Dir, Look } from "../types";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
@@ -18,6 +19,7 @@ export interface PaintActor {
   bob: number;
   suitBlend: number;
   radioLight: boolean;
+  seated?: boolean;
 }
 
 export interface Paint {
@@ -35,6 +37,8 @@ export interface Paint {
   doorOpenness: Record<string, number>;
   viewW: number;
   viewH: number;
+  scene: "facility" | "ship";
+  stationsLive: boolean;
 }
 
 interface Palette {
@@ -96,6 +100,10 @@ export function drawStars(ctx: CanvasRenderingContext2D, width: number, height: 
 }
 
 export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
+  if (paint.scene === "ship") {
+    drawShipFrame(ctx, paint);
+    return;
+  }
   ctx.fillStyle = "#0C1522";
   ctx.fillRect(0, 0, paint.viewW, paint.viewH);
   ctx.save();
@@ -137,6 +145,29 @@ export function drawWorld(ctx: CanvasRenderingContext2D, paint: Paint): void {
   layers.sort((a, b) => a.z - b.z);
   for (const layer of layers) layer.draw();
 
+  ctx.restore();
+  ctx.fillStyle = "rgba(16, 27, 46, 0.18)";
+  ctx.fillRect(0, 0, paint.viewW, 18);
+  ctx.fillRect(0, paint.viewH - 18, paint.viewW, 18);
+}
+
+function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
+  ctx.fillStyle = "#070d16";
+  ctx.fillRect(0, 0, paint.viewW, paint.viewH);
+  ctx.save();
+  ctx.translate(-paint.cameraX * paint.zoom, -paint.cameraY * paint.zoom);
+  ctx.scale(paint.zoom, paint.zoom);
+  drawShipInterior(ctx, { time: paint.time, focusRoom: paint.focusRoom, stationsLive: paint.stationsLive });
+  if (paint.highlight) {
+    const pulse = 0.35 + Math.sin(paint.time * 4) * 0.15;
+    ctx.strokeStyle = `rgba(240, 168, 75, ${0.45 + pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(paint.highlight.x, paint.highlight.y + 4, 26, 12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  const actors = [...paint.actors, paint.player].sort((a, b) => a.y - b.y);
+  for (const actor of actors) drawActor(ctx, actor, paint.time);
   ctx.restore();
   ctx.fillStyle = "rgba(16, 27, 46, 0.18)";
   ctx.fillRect(0, 0, paint.viewW, 18);
@@ -571,7 +602,7 @@ function drawActor(ctx: CanvasRenderingContext2D, actor: PaintActor, time: numbe
   ctx.beginPath();
   ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.translate(0, bob);
+  ctx.translate(0, bob + (actor.seated ? 8 : 0));
   ctx.rotate(actor.lean ?? 0);
   if (actor.facing === "left") ctx.scale(-1, 1);
   const side = actor.facing === "left" || actor.facing === "right";

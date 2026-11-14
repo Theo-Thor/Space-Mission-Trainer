@@ -17,6 +17,8 @@ export class Surface {
   private readonly prompt = must<HTMLElement>("prompt");
   private readonly hint = must<HTMLElement>("hint");
   private readonly banner = must<HTMLElement>("banner");
+  private readonly bannerTitle = must<HTMLElement>("banner-title");
+  private readonly bannerSub = must<HTMLElement>("banner-sub");
   private readonly toast = must<HTMLElement>("toast");
   private readonly toastTitle = must<HTMLElement>("toast-title");
   private readonly toastBody = must<HTMLElement>("toast-body");
@@ -34,6 +36,8 @@ export class Surface {
   private readonly inspectDetail = must<HTMLElement>("inspect-detail");
   private readonly suit = must<HTMLElement>("suit");
   private readonly suitReady = must<HTMLElement>("suit-ready");
+  private readonly flight = must<HTMLElement>("flight");
+  private readonly flightReady = must<HTMLElement>("flight-ready");
   private readonly fade = must<HTMLElement>("fade");
   private readonly complete = must<HTMLElement>("complete");
   private readonly mute = must<HTMLButtonElement>("mute");
@@ -96,6 +100,12 @@ export class Surface {
 
   setBannerVisible(on: boolean): void {
     this.banner.hidden = !on;
+  }
+
+  setBannerLines(title: string, subtitle: string): void {
+    this.bannerTitle.textContent = title;
+    this.bannerSub.textContent = subtitle;
+    this.banner.hidden = false;
   }
 
   pushToast(title: string, body: string, detail?: string): void {
@@ -163,6 +173,18 @@ export class Surface {
 
   hideSuit(): void {
     this.suit.hidden = true;
+  }
+
+  showFlight(step: number): void {
+    this.flight.hidden = false;
+    for (let index = 1; index <= 3; index += 1) {
+      must<HTMLElement>(`flight-step-${index}`).classList.toggle("on", step >= index);
+    }
+    this.flightReady.hidden = step < 4;
+  }
+
+  hideFlight(): void {
+    this.flight.hidden = true;
   }
 
   setFade(amount: number): void {

@@ -6,7 +6,10 @@ export type ResolveResult =
   | { kind: "toast"; title: string; body: string }
   | { kind: "inspect"; title: string; body: string; detail: string }
   | { kind: "pickup" }
-  | { kind: "equip" };
+  | { kind: "equip" }
+  | { kind: "flight" }
+  | { kind: "comms" }
+  | { kind: "seat" };
 
 export interface MissionSignals {
   onObjective(text: string): void;
@@ -14,6 +17,7 @@ export interface MissionSignals {
   onRadios(ids: string[], delay: number): void;
   onRileyWalk(): void;
   onBoard(): void;
+  onRileySeat(): void;
 }
 
 export class Mission {
@@ -26,6 +30,10 @@ export class Mission {
   companionMet = false;
   companionAtHatch = false;
   chapterCompleted = false;
+  aboard = false;
+  flightVerified = false;
+  commsVerified = false;
+  seated = false;
   valTalked = false;
   patelTalked = false;
   objective: string = OBJECTIVES.briefing;
@@ -91,6 +99,8 @@ export class Mission {
         }
         return { kind: "equip" };
       case "riley":
+        if (this.aboard && this.seated) return { kind: "dialogue", id: "RILEY_STANDBY" };
+        if (this.aboard) return { kind: "dialogue", id: "RILEY_ABOARD" };
         if (this.phase === "NEED_CREWMATE_MEETING") return { kind: "dialogue", id: "CREWMATE_MEETING" };
         if (this.companionMet && !this.companionAtHatch) return { kind: "dialogue", id: "RILEY_WALKING" };
         if (this.companionMet && this.companionAtHatch && this.phase === "NEED_BOARDING") {
@@ -124,6 +134,23 @@ export class Mission {
         return { kind: "toast", title: "PERSONAL CHANNEL — ACTIVE", body: "Your communications unit is linked to Mission Control." };
       case "storage":
         return { kind: "toast", title: "EQUIPMENT", body: "Equipment prepared for the upcoming expedition." };
+      case "flight-console":
+        if (this.flightVerified) return { kind: "toast", title: "FLIGHT SYSTEMS VERIFIED", body: "The flight checks are already complete." };
+        if (this.phase !== "NEED_FLIGHT_SYSTEMS") {
+          return { kind: "toast", title: "FLIGHT SYSTEMS", body: "The flight console is not ready for this check." };
+        }
+        return { kind: "flight" };
+      case "comms-console":
+        if (this.commsVerified) return { kind: "toast", title: "COMMUNICATIONS VERIFIED", body: "Mission Control already confirmed the channel." };
+        if (!this.flightVerified) return { kind: "toast", title: "COMMUNICATIONS", body: "Check the flight systems before opening the channel." };
+        if (this.phase !== "NEED_COMMS_VERIFY") {
+          return { kind: "toast", title: "COMMUNICATIONS", body: "The communications console is not ready for this check." };
+        }
+        return { kind: "comms" };
+      case "pilot-seat":
+        if (this.seated) return { kind: "toast", title: "STATION", body: "You are already at your station." };
+        if (!this.commsVerified) return { kind: "toast", title: "STATION", body: "Verify communications before taking your seat." };
+        return { kind: "seat" };
       default:
         return { kind: "toast", title: "SELENE", body: "Nothing here responds." };
     }
@@ -185,6 +212,43 @@ export class Mission {
     if (this.chapterCompleted) return;
     this.chapterCompleted = true;
     this.phase = "CHAPTER_COMPLETE";
+  }
+
+  arriveShip(): void {
+    if (this.aboard) return;
+    this.aboard = true;
+    this.phase = "NEED_FLIGHT_SYSTEMS";
+    this.objective = OBJECTIVES.flight;
+    this.signals.onObjective(this.objective);
+    this.signals.onToast("ABOARD", "SELENE SPACECRAFT", "Pre-launch operations.");
+    this.signals.onToast("NEW OBJECTIVE", this.objective);
+  }
+
+  finishFlight(): void {
+    if (this.flightVerified || this.phase !== "NEED_FLIGHT_SYSTEMS") return;
+    this.flightVerified = true;
+    this.phase = "NEED_COMMS_VERIFY";
+    this.signals.onToast("FLIGHT SYSTEMS VERIFIED", "Flight computer, navigation, and power distribution.");
+    this.objective = OBJECTIVES.commsVerify;
+    this.signals.onObjective(this.objective);
+  }
+
+  finishComms(): void {
+    if (this.commsVerified || this.phase !== "NEED_COMMS_VERIFY") return;
+    this.commsVerified = true;
+    this.phase = "NEED_SEAT";
+    this.signals.onToast("COMMUNICATIONS VERIFIED", "Mission Control has cleared the crew to stations.");
+    this.objective = OBJECTIVES.seat;
+    this.signals.onObjective(this.objective);
+    this.signals.onRileySeat();
+  }
+
+  markSeated(): void {
+    if (this.seated) return;
+    this.seated = true;
+    this.phase = "AWAITING_LAUNCH";
+    this.objective = OBJECTIVES.standby;
+    this.signals.onObjective(this.objective);
   }
 
   radioText(id: string): { id: string; sender: string; text: string } {

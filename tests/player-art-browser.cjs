@@ -169,7 +169,7 @@ async function main() {
     await until('window.__SELENE__.snapshot().companionAtHatch','Riley failed to arrive');
     await evaluate('window.__SELENE__.teleport(2608,844)');
     await talk('hatch','NEED_BOARDING');
-    await until('window.__SELENE__.snapshot().chapterCompleted','Chapter did not complete');
+    await until('window.__SELENE__.snapshot().phase === "NEED_FLIGHT_SYSTEMS" && window.__SELENE__.snapshot().scene === "ship"','Spacecraft interior did not load');
 
     // One broken frame must not crash the renderer or prevent keyboard movement.
     await send('Fetch.enable',{patterns:[{urlPattern:'*uniform-front.png',requestStage:'Request'}]});
@@ -181,7 +181,7 @@ async function main() {
     assert((await snapshot()).y>1460,'Missing image prevented movement');
     assert.equal(await evaluate('window.__artCheck.seen.includes("uniform-front.png")'),false);
     assert.equal(errors.length,0,JSON.stringify(errors));
-    console.log('PASS: twelve environment assets, six room captures, all eight character views and 32 walking frames, keyboard movement/stopping, wall and door collisions, outfit crossfade, radio, NPC dialogues, Riley path, chapter completion and missing-image fallback.');
+    console.log('PASS: twelve environment assets, six room captures, all eight character views and 32 walking frames, keyboard movement/stopping, wall and door collisions, outfit crossfade, radio, NPC dialogues, Riley path, boarding into the spacecraft and missing-image fallback.');
     console.log('Screenshots: '+output);
   } finally {
     if(send) { try { await send('Browser.close'); } catch {} }

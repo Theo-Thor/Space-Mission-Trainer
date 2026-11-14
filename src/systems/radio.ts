@@ -21,9 +21,10 @@ export class RadioQueue {
     this.queue.push(message);
   }
 
-  tick(dt: number, dialogueOpen: boolean): { visible: boolean; message: RadioMessage | null; changed: boolean } {
+  tick(dt: number, dialogueOpen: boolean): { visible: boolean; message: RadioMessage | null; changed: boolean; completedId: string | null } {
     const previousVisible = this.visible;
     const previousId = this.current?.id ?? "";
+    let completedId: string | null = null;
 
     if (dialogueOpen) {
       this.resumeHold = this.current !== null;
@@ -35,6 +36,7 @@ export class RadioQueue {
       if (this.resumeHold) this.resumeHold = false;
       else this.elapsed += dt;
       if (this.elapsed >= this.duration) {
+        completedId = this.current.id;
         this.current = null;
         this.visible = false;
         this.pullNext();
@@ -42,7 +44,7 @@ export class RadioQueue {
     }
 
     const changed = previousVisible !== this.visible || previousId !== (this.current?.id ?? "");
-    return { visible: this.visible, message: this.visible ? this.current : null, changed };
+    return { visible: this.visible, message: this.visible ? this.current : null, changed, completedId };
   }
 
   private pullNext(): void {
