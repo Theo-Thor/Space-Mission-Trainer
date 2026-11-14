@@ -2,9 +2,10 @@ import { doorPanels } from "../systems/doors";
 import { drawPlayerArt } from "./player-art";
 import { drawCrewArt } from "./crew-art";
 import { drawRileyArt } from "./riley-art";
-import { drawShipInterior } from "./ship-art";
+import { drawShipFurnishing, drawShipScenery } from "./ship-art";
 import { drawFacilityShell, drawFacilityProp, drawFacilityThreshold } from "./facility-art";
 import type { Dir, Look } from "../types";
+import { shipProps } from "../content/ship";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
 
 export interface PaintActor {
@@ -159,7 +160,7 @@ function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
   ctx.save();
   ctx.translate(-paint.cameraX * paint.zoom, -paint.cameraY * paint.zoom);
   ctx.scale(paint.zoom, paint.zoom);
-  drawShipInterior(ctx, { time: paint.time, focusRoom: paint.focusRoom, stationsLive: paint.stationsLive });
+  drawShipScenery(ctx, { time: paint.time, focusRoom: paint.focusRoom, stationsLive: paint.stationsLive });
   if (paint.highlight) {
     const pulse = 0.35 + Math.sin(paint.time * 4) * 0.15;
     ctx.strokeStyle = `rgba(240, 168, 75, ${0.45 + pulse})`;
@@ -168,8 +169,16 @@ function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
     ctx.ellipse(paint.highlight.x, paint.highlight.y + 4, 26, 12, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  const actors = [...paint.actors, paint.player].sort((a, b) => a.y - b.y);
-  for (const actor of actors) drawActor(ctx, actor, paint.time);
+  const layers: { z: number; draw: () => void }[] = [];
+  for (const prop of shipProps) {
+    if (prop.id === "window-ledge") continue;
+    layers.push({ z: prop.y + prop.h, draw: () => drawShipFurnishing(ctx, prop, { time: paint.time, focusRoom: paint.focusRoom, stationsLive: paint.stationsLive }) });
+  }
+  for (const actor of [...paint.actors, paint.player]) {
+    layers.push({ z: actor.y, draw: () => drawActor(ctx, actor, paint.time) });
+  }
+  layers.sort((a, b) => a.z - b.z);
+  for (const layer of layers) layer.draw();
   ctx.restore();
   ctx.fillStyle = "rgba(16, 27, 46, 0.18)";
   ctx.fillRect(0, 0, paint.viewW, 18);

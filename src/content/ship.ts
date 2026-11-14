@@ -7,7 +7,7 @@ export const SHIP_WORLD = { width: 1280, height: 980 };
 
 export const shipRooms: Room[] = [
   { id: "cockpit", label: "COCKPIT", x: 140, y: 24, w: 1000, h: 520, floor: "#1B3144", accent: "#55D5E9" },
-  { id: "access", label: "ACCESS", x: 490, y: 544, w: 300, h: 200, floor: "#243246", accent: "#7DCEC6" },
+  { id: "access", label: "ACCESS", x: 360, y: 544, w: 560, h: 200, floor: "#243246", accent: "#7DCEC6" },
   { id: "airlock", label: "AIRLOCK", x: 340, y: 744, w: 600, h: 210, floor: "#1A2838", accent: "#F0A84B" },
 ];
 
@@ -31,8 +31,9 @@ export const shipProps: PropDef[] = [
   { id: "window-ledge", kind: "bench", x: 200, y: 68, w: 880, h: 124, blocks: true },
   { id: "flight-console", kind: "console", x: 220, y: 196, w: 200, h: 52, blocks: true, prompt: "E — Check Flight Systems", radius: 86, ax: 320, ay: 292 },
   { id: "comms-console", kind: "console", x: 860, y: 196, w: 200, h: 52, blocks: true, prompt: "E — Verify Communications", radius: 86, ax: 960, ay: 292 },
-  { id: "pilot-seat", kind: "seat", x: 460, y: 356, w: 84, h: 30, blocks: false, prompt: "E — Take Seat", radius: 86, ax: 502, ay: 448 },
-  { id: "riley-seat", kind: "seat", x: 736, y: 356, w: 84, h: 30, blocks: false },
+  { id: "center-console", kind: "console", x: 470, y: 196, w: 290, h: 52, blocks: true },
+  { id: "pilot-seat", kind: "seat", x: 460, y: 356, w: 84, h: 30, blocks: true, prompt: "E — Take Seat", radius: 86, ax: 502, ay: 448 },
+  { id: "riley-seat", kind: "seat", x: 736, y: 356, w: 84, h: 30, blocks: true },
 ];
 
 export const SHIP_SPAWN = { x: 680, y: 890 };

@@ -1,0 +1,13 @@
+Selene spacecraft props. Package with tests/package-ship-art.ps1.
+White backgrounds are removed. A pure magenta center in the door frame becomes the open doorway.
+Draw each sprite upward from its collision rectangle in src/content/ship.ts.
+
+flight-console: ivory flight console, navy outline, cyan instrument screen, orange switches.
+comms-console: ivory communications console, cyan trim, waveform screen, one orange switch.
+center-console: wide center panel, three dark screens, orange switches.
+pilot-seat: navy couch, ivory frame, cyan piping, orange harness buckle. Used for both seats.
+avionics-rack: tall ivory cabinet, cyan status light, orange switches. Used on both cockpit walls.
+stowage-locker: low wide ivory locker, orange latches. Used for the two rear cockpit lockers.
+bay-locker: tall ivory double-door locker, orange handle. Used in the access corridor and airlock.
+pressure-hatch: round navy hatch, ivory frame, orange warning stripes, amber lamp. Drawn on the south airlock wall, not a blocker.
+door-frame: ivory doorway with cyan lights and a magenta opening. Drawn over both ship doors without shrinking them.
