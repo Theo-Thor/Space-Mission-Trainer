@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Project Selene — Chapter 1</title>
+    <title>Project Selene — Junior Astronaut</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23101B2E'/%3E%3Ccircle cx='18' cy='16' r='7' fill='%23E8EFF5'/%3E%3Ccircle cx='14' cy='16' r='7' fill='%23101B2E'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
@@ -30,6 +30,15 @@
         <p id="welcome" hidden></p>
         <p class="footer">MISSION PREPARATION FACILITY — EARTH</p>
       </form>
+      <nav id="demo-jump" aria-label="Demo: jump to a part of the game">
+        <p>DEMO · JUMP TO</p>
+        <div>
+          <button type="button" data-jump="launch">Launch</button>
+          <button type="button" data-jump="moon">Moon base</button>
+          <button type="button" data-jump="nexus">NEXUS cube</button>
+          <button type="button" data-jump="eva">Rover Rescue</button>
+        </div>
+      </nav>
     </section>
 
     <div id="hud" hidden>
@@ -60,7 +69,7 @@
       </div>
       <p id="prompt" hidden></p>
       <button id="mute" type="button">Sound on</button>
-      <button id="restart" type="button">Restart Chapter</button>
+      <button id="restart" type="button">Restart Mission</button>
     </div>
 
     <aside id="radio" hidden>
@@ -106,16 +115,31 @@
 
     <section id="complete" hidden>
       <p class="brand">PROJECT SELENE</p>
-      <h1>CHAPTER 1 COMPLETE</h1>
+      <h1>LAUNCH AUTHORIZED</h1>
       <p class="brand-sub">THE JOURNEY BEGINS</p>
       <p class="soon">LAUNCH AUTHORIZED</p>
       <div class="actions">
         <button id="launch" type="button">BEGIN LAUNCH</button>
-        <button id="replay" type="button">REPLAY CHAPTER</button>
+        <button id="replay" type="button">RESTART MISSION</button>
       </div>
     </section>
 
     <button id="skip-voyage" type="button" hidden>Skip</button>
+
+    <section id="finale" hidden>
+      <div class="finale-card">
+        <div class="finale-badge" aria-hidden="true"><span>2048</span></div>
+        <p class="finale-kicker">PROJECT SELENE · LUNAR SOUTH POLE</p>
+        <h1>JUNIOR ASTRONAUT<br />CERTIFIED</h1>
+        <p id="finale-name"></p>
+        <ul id="finale-stats"></ul>
+        <p class="finale-note">You balanced a colony with real trade-offs and real NASA data. Every astronaut's job is choosing well when there isn't enough of everything.</p>
+        <div class="finale-actions">
+          <button id="finale-continue" type="button">Keep exploring</button>
+          <button id="finale-restart" type="button">Restart mission</button>
+        </div>
+      </div>
+    </section>
 
     <section id="nexus" hidden>
       <div id="nexus-stage"></div>
@@ -123,13 +147,16 @@
         <p class="nexus-label">NEXUS · <span id="nexus-turn">Turn 1 of 11</span></p>
         <h2 id="nexus-title"></h2>
         <p id="nexus-text"></p>
+        <p id="nexus-sky"></p>
         <div id="nexus-choices"></div>
         <p id="nexus-tip"></p>
       </div>
       <div class="nexus-side">
         <p class="nexus-label">COLONY NEEDS</p>
         <div id="nexus-meters"></div>
-        <p class="nexus-note">Each beam is one piece in the right place. Fictional rules; the Moon events come from NASA facts.</p>
+        <p class="nexus-label nexus-chart-label">REAL SKY · NOV 2048</p>
+        <canvas id="nexus-chart" width="440" height="170"></canvas>
+        <p class="nexus-note">Earth (blue) and Sun (amber) above the horizon, from NASA JPL Horizons. The rules of the cube are fictional.</p>
       </div>
       <p class="nexus-help">Drag empty space to look around · Drag a glowing layer to turn it</p>
       <button id="nexus-leave" type="button">Leave NEXUS · Esc</button>
@@ -150,7 +177,7 @@
         <p class="note">The craft, base, crew and year are fictional. The distance, travel time, gravity and south-pole facts come from NASA.</p>
         <div class="actions">
           <button id="arrival-continue" type="button">EXPLORE SELENE BASE</button>
-          <button id="arrival-replay" type="button">REPLAY CHAPTER</button>
+          <button id="arrival-replay" type="button">RESTART MISSION</button>
         </div>
       </div>
     </section>

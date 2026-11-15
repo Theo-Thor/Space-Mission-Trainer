@@ -115,7 +115,7 @@ function bakeRoom(room: Room, roomProps: Footprint[]): HTMLCanvasElement {
   }
   // Insets ground existing furniture without changing its world footprint.
   for (const prop of roomProps.filter(p => p.x >= room.x + 28 && p.x < room.x + room.w - 28 && p.y >= room.y + 28 && p.y < room.y + room.h - 28 && p.blocks)) {
-    if (prop.kind === "plant" || prop.kind === "moon") continue;
+    if (prop.kind === "plant" || prop.kind === "moon" || prop.kind === "nexus") continue;
     const x = prop.x - room.x; const y = prop.y - room.y;
     panel(ctx, x - 8, y - 6, prop.w + 16, prop.h + 14, "rgba(10,22,32,0.13)", 3);
     ctx.strokeStyle = "rgba(160,187,200,0.15)"; ctx.strokeRect(x - 8, y - 6, prop.w + 16, prop.h + 14);

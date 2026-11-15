@@ -1,7 +1,7 @@
 import { CharacterAnimator } from "./systems/animation";
 import { AutomaticDoor, actorFootprint } from "./systems/doors";
 import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD, type PropDef } from "./content/world";
-import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, RILEY_SPAWN, SHIP_LOOK, SHIP_SPAWN, SHIP_WORLD, shipObstacles, shipProps, shipRoomAt, shipWalkable } from "./content/ship";
+import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, SHIP_LOOK, shipProps, shipRoomAt } from "./content/ship";
 import { LUNAR_RILEY, LUNAR_SPAWN, LUNAR_WORLD, lunarCrew, lunarObstacles, lunarProps, lunarRoomAt, lunarWalkable, NPC_GREETING, onSurface, type LunarProp } from "./content/lunar";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { drawVoyage } from "./render/voyage-art";
@@ -9,6 +9,7 @@ import { nexusPaint } from "./render/lunar-art";
 import { NEEDS, NexusRun, TOTAL_TURNS } from "./nexus/cube";
 import { EvaMission, type EvaInput } from "./eva/eva";
 import { drawEva } from "./eva/eva-art";
+import { EARTH_UP_SHARE, SKY_SOURCE, SUN_MAX, formatDay, skyAt } from "./content/sky";
 import { CUES, VOYAGE_DURATION } from "./content/voyage";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
@@ -115,6 +116,8 @@ export class Game {
   private evaSnapshot: HTMLCanvasElement | null = null;
   private evaRadio = 0;
   roverRescued = false;
+  private finaleShown = false;
+  private bestJump = 0;
   /** Footprints on the lunar surface (top-down). */
   private readonly prints: { x: number; y: number; a: number }[] = [];
   private lastPrint = { x: 0, y: 0 };
@@ -384,6 +387,7 @@ export class Game {
       scene: this.scene,
       stationsLive: this.stationsLive,
       footprints: this.scene === "lunar" ? this.prints : undefined,
+      roomNeeds: this.scene === "lunar" ? this.roomNeeds() : undefined,
     });
   }
 
@@ -614,41 +618,13 @@ export class Game {
     stepToward(this.player, BOARD_TARGET.player.x, BOARD_TARGET.player.y, 150, dt);
     const fade = clamp((this.boardT - 1.15) / 0.75, 0, 1);
     this.ui.setFade(fade);
-    if (this.boardT > 2.35) this.enterShip();
-  }
-
-  private enterShip(): void {
-    this.scene = "ship";
-    this.areas = shipWalkable();
-    this.blocks = shipObstacles();
-    this.bounds = SHIP_WORLD;
-    this.boardActive = false;
-    this.player.x = SHIP_SPAWN.x;
-    this.player.y = SHIP_SPAWN.y;
-    this.player.facing = "up";
-    this.player.walking = false;
-    this.player.suitBlend = 1;
-    this.suitBlend = 1;
-    this.animator.track(this.player);
-    const riley = this.actor("riley");
-    riley.x = RILEY_SPAWN.x;
-    riley.y = RILEY_SPAWN.y;
-    riley.facing = "up";
-    riley.walking = false;
-    riley.seated = false;
-    this.animator.track(riley);
-    for (const actor of this.actors) {
-      if (actor.id !== "riley") actor.interactive = false;
+    // No spaceship interior: boarding goes straight to the Earth-to-Moon flight.
+    if (this.boardT > 2.35) {
+      this.boardActive = false;
+      this.player.suitBlend = 1;
+      this.suitBlend = 1;
+      this.startVoyage();
     }
-    this.mission.arriveShip();
-    this.ui.setBannerLines("SELENE SPACECRAFT", "PRE-LAUNCH OPERATIONS");
-    this.ui.setHudVisible(true);
-    this.intro = 0;
-    this.rileyShip = "hold";
-    this.rileyIndex = 0;
-    this.shipFade = 0.9;
-    this.ui.setFade(1);
-    this.placeCamera(0);
   }
 
   private updateRadios(dt: number): void {
@@ -735,10 +711,21 @@ export class Game {
     if (this.voyageT >= VOYAGE_DURATION) this.endVoyage();
   }
 
+  /** Touchdown: no card, the game simply continues at Selene Base. */
   private endVoyage(): void {
     this.voyageDone = true;
     this.ui.setVoyageSkip(false);
-    this.ui.showArrival(this.mission.playerName);
+    this.enterLunar();
+    this.ui.showInspect(
+      "WELCOME TO THE MOON",
+      `${this.mission.playerName} and Riley have landed at Selene Base, lunar south pole.`,
+      "The craft, base, crew and year 2048 are fictional. The distance, travel time, gravity and south-pole facts come from NASA.",
+    );
+    this.ui.showInspect(
+      "REAL SKY DATA",
+      `In November 2048, seen from 89.5° S, the Sun never climbs higher than ${SUN_MAX.toFixed(2)}° and Earth is above the horizon only ${Math.round(EARTH_UP_SHARE * 100)}% of the time. NEXUS and the EVA use this data.`,
+      SKY_SOURCE,
+    );
   }
 
   /** After the touchdown card: the player stands on the landing pad in the suit, Riley beside them. */
@@ -952,14 +939,23 @@ export class Game {
     const run = this.nexus;
     nexusPaint.solved = run.done;
     nexusPaint.color = run.done ? "#FFFFFF" : NEEDS[run.lowest()].color;
+    nexusPaint.label = run.done ? "NEXUS · 2048" : `NEXUS · ${run.turns} / ${TOTAL_TURNS}`;
     if (run.done) {
-      this.ui.setObjective("Selene Base is ready");
+      window.setTimeout(() => this.checkFinale(), 1200);
+      this.ui.setObjective(this.roverRescued ? "Selene Base is ready" : "Go outside: rescue the scout rover");
       this.ui.pushToast("NEXUS COMPLETE", "2048 · Every need is full.");
     } else if (run.turns > 0) {
       const low = NEEDS[run.lowest()].name;
       this.ui.setObjective(`NEXUS: turn ${run.turns + 1} of ${TOTAL_TURNS}`);
       this.ui.pushToast("COLONY UPDATE", `${low} is the lowest need right now.`);
     }
+  }
+
+  /** Which base room shows which NEXUS need. */
+  private roomNeeds(): Record<string, { name: string; color: string; level: number }> {
+    const counts = this.nexus.cube.counts();
+    const ROOMS = { "lu-pow": "px", "lu-com": "nx", "lu-ind": "py", "lu-hab": "ny", "lu-green": "nz", "lu-med": "pz" } as const;
+    return Object.fromEntries(Object.entries(ROOMS).map(([room, face]) => [room, { ...NEEDS[face], level: counts[face] }]));
   }
 
   private leavePrints(): void {
@@ -998,6 +994,15 @@ export class Game {
       },
       done: () => this.exitEva(),
     });
+    // Today's real sky (NASA JPL Horizons) for the date of the current NEXUS turn.
+    const day = this.nexus.step?.day ?? 30;
+    const sky = skyAt(day);
+    this.eva.sunDeg = sky.sun;
+    this.eva.earthDeg = sky.earth;
+    this.eva.skyLines = [
+      sky.sun > 0 ? `Today, ${formatDay(sky.date)}: the Sun is only ${sky.sun.toFixed(2)}° above the horizon.` : `Today, ${formatDay(sky.date)}: the Sun has slipped just below the horizon.`,
+      sky.earth > 0 ? `Earth is ${sky.earth.toFixed(1)}° up: we can still call home.` : `Earth is ${Math.abs(sky.earth).toFixed(1)}° below the horizon: the rover is our only relay.`,
+    ];
     this.scene = "eva";
     this.player.walking = false;
     this.ui.hideInspect();
@@ -1036,8 +1041,27 @@ export class Game {
     }
   }
 
+  /** Both missions done (NEXUS at 2048 and the rover home): the finale. */
+  private checkFinale(): void {
+    if (this.finaleShown || !this.nexus.done || !this.roverRescued) return;
+    this.finaleShown = true;
+    this.ui.setObjective("Junior Astronaut certified");
+    this.ui.showFinale(this.mission.playerName, [
+      "NEXUS solved in 11 turns · 2048",
+      "Scout rover rescued · signal relay online",
+      `${this.ui.factCount} NASA facts in your Mission data`,
+      this.bestJump > 0 ? `Best Moon jump: ${this.bestJump.toFixed(1)} m (about 6× an Earth jump)` : "Moon gravity: 1.62 m/s²",
+    ]);
+    this.sfx.voyage("touchdown");
+  }
+
+  closeFinale(): void {
+    this.ui.hideFinale();
+  }
+
   /** Back through the airlock into the garage. */
   private exitEva(): void {
+    if (this.eva) this.bestJump = Math.max(this.bestJump, this.eva.summary().heightM);
     this.eva = null;
     this.evaSnapshot = null;
     this.scene = "lunar";
@@ -1050,6 +1074,7 @@ export class Game {
     this.ui.hideInspect();
     this.ui.setObjective(this.nexus.done ? "Selene Base is ready" : "Examine NEXUS in the Grand Hall");
     this.ui.pushToast("ROVER RESCUED", "Signal relay online · the scout rover is home");
+    window.setTimeout(() => this.checkFinale(), 1800);
     this.shipFade = 0;
     this.ui.setFade(0);
     this.placeCamera(0);

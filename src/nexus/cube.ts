@@ -114,6 +114,8 @@ export class NexusCube {
 export interface Step {
   title: string;
   text: string;
+  /** Days after 1 Nov 2048 00:00 UT: the real NASA sky data for that moment is shown on the card. */
+  day: number;
   /** One move = forced. Two moves = opposite faces; the player picks the order (they commute, so both orders end on the same cube). */
   moves: Move[];
 }
@@ -123,36 +125,43 @@ export const TOTAL_TURNS = 11;
 export const TIMELINE: Step[] = [
   {
     title: "NEXUS wakes up",
+    day: 9,
     text: "This cube runs Selene Base. Turn the glowing Food layer to wake up the greenhouse.",
     moves: [{ face: "nz", dir: 1 }],
   },
   {
     title: "Earth is setting",
+    day: 21.5,
     text: "Earth is sinking behind the hills. For about two weeks we can't call home. Power first, or radio first?",
     moves: [{ face: "px", dir: 1 }, { face: "nx", dir: -1 }],
   },
   {
     title: "Ice in a dark crater",
+    day: 23,
     text: "We found ice in a crater colder than Pluto's surface. Water first, or air first?",
     moves: [{ face: "py", dir: -1 }, { face: "ny", dir: 1 }],
   },
   {
     title: "SOLAR STORM",
+    day: 25,
     text: "A solar storm is coming! Everyone into the shelter. Only one move: the Shield.",
     moves: [{ face: "pz", dir: 1 }],
   },
   {
     title: "After the storm",
+    day: 26.5,
     text: "The storm is over. The Sun is low and the solar panels are dusty. Power first, or radio first?",
     moves: [{ face: "px", dir: -1 }, { face: "nx", dir: 1 }],
   },
   {
     title: "The long shadow",
-    text: "The Sun is hiding behind the crater rim. Water first, or air first?",
+    day: 28.5,
+    text: "The Sun is barely above the horizon, so every hill casts a huge shadow. Water first, or air first?",
     moves: [{ face: "py", dir: 1 }, { face: "ny", dir: -1 }],
   },
   {
     title: "THE LAST TURN",
+    day: 30,
     text: "Storm, darkness and no Earth, all at once. One move left. Make it count.",
     moves: [{ face: "pz", dir: -1 }],
   },

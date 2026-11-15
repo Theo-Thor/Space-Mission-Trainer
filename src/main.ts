@@ -107,6 +107,25 @@ form.addEventListener("submit", (event) => {
   }, 1600);
 });
 
+document.querySelector("#finale-continue")?.addEventListener("click", () => game.closeFinale());
+document.querySelector("#finale-restart")?.addEventListener("click", () => window.location.reload());
+
+// Demo menu for the pitch: start with the typed name (or "Nova") and jump straight to a part of the game.
+for (const button of document.querySelectorAll<HTMLButtonElement>("#demo-jump button")) {
+  button.addEventListener("click", () => {
+    const hooks = window.__SELENE__;
+    if (!hooks) return;
+    const name = nameInput.value.trim() || "Nova";
+    hooks.start(name);
+    screen.fade.style.opacity = "0";
+    const jump = button.dataset.jump;
+    if (jump === "launch") hooks.voyage();
+    else if (jump === "moon") hooks.lunar();
+    else if (jump === "nexus") hooks.nexus();
+    else if (jump === "eva") hooks.eva();
+  });
+}
+
 window.addEventListener("resize", () => game.resize());
 window.addEventListener(
   "keydown",
@@ -175,7 +194,7 @@ window.__SELENE__ = {
   },
   nexus: () => {
     if (game.snapshot().scene !== "lunar") window.__SELENE__?.lunar();
-    game.teleport(1700, 470);
+    game.teleport(1700, 580);
     // Input is ignored during the landing fade, so keep trying for a few seconds.
     let tries = 0;
     const tryOpen = (): void => {

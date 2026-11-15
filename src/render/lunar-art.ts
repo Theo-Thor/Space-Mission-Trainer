@@ -60,7 +60,7 @@ function pot(c: Ctx, x: number, y: number, s = 1): void {
 
 type Painter = (c: Ctx, p: LP, t: number) => void;
 /** What the NEXUS pedestal shows in the base. The game updates it after each visit. */
-export const nexusPaint = { color: "#55D5E9", solved: false };
+export const nexusPaint = { color: "#55D5E9", solved: false, label: "NEXUS · 0 / 11" };
 
 /** A mesh tyre seen from the side-front: dark ring, diamond mesh, hub. */
 function meshWheel(c: Ctx, x: number, y: number, w: number, h: number, far = false): void {
@@ -168,34 +168,100 @@ const ART: Record<string, Painter> = {
     for (const [x, y, r] of [[40, 40, 8], [78, 52, 6], [62, 28, 4], [92, 66, 5]] as const) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
     line(c, [74, 10, 108, 26, 120, 54], "rgba(235,240,245,0.6)", 2.5);
   },
-  // ---------- GRAND HALL: NEXUS pedestal (simple on purpose; the full cube appears on Examine) ----------
+  // ---------- GRAND HALL: NEXUS (a smaller echo of the 3D cube: metal, crystal cores, beams) ----------
   nexus(c, _p, t) {
+    const NEED = ["#FFB547", "#FF6FA8", "#3FD8FF", "#D6ECFF", "#9B7BFF", "#5BE38C"];
     const pulse = 0.5 + 0.5 * Math.sin(t * 2);
-    c.fillStyle = "#16202F"; c.strokeStyle = "#3C4E6A"; c.lineWidth = 3;
-    c.beginPath(); c.ellipse(70, 128, 62, 20, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-    c.strokeStyle = nexusPaint.color; c.globalAlpha = 0.35 + 0.35 * pulse; c.lineWidth = 3;
-    c.beginPath(); c.ellipse(70, 128, 50, 15, 0, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
-    const y = Math.sin(t * 1.4) * 2;
-    const top: [number, number][] = [[70, 18 + y], [112, 42 + y], [70, 66 + y], [28, 42 + y]];
-    const left: [number, number][] = [[28, 42 + y], [70, 66 + y], [70, 112 + y], [28, 88 + y]];
-    const right: [number, number][] = [[70, 66 + y], [112, 42 + y], [112, 88 + y], [70, 112 + y]];
-    const face = (pts: [number, number][], fill: string): void => {
-      c.fillStyle = fill; c.strokeStyle = "#0B1018"; c.lineWidth = 3;
+    const cx = 120;
+    const base = 262;
+    // Platform: dark disc, rotating dashed ring, six need-coloured nodes.
+    c.fillStyle = "#121A27"; c.strokeStyle = "#3C4E6A"; c.lineWidth = 3;
+    c.beginPath(); c.ellipse(cx, base, 116, 34, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.save(); c.strokeStyle = nexusPaint.color; c.globalAlpha = 0.55 + 0.3 * pulse; c.lineWidth = 3;
+    c.setLineDash([18, 10]); c.lineDashOffset = -t * 30;
+    c.beginPath(); c.ellipse(cx, base, 96, 27, 0, 0, Math.PI * 2); c.stroke(); c.restore();
+    NEED.forEach((col, i) => {
+      const a = (i / 6) * Math.PI * 2 + t * 0.4;
+      const nx = cx + Math.cos(a) * 96;
+      const ny = base + Math.sin(a) * 27;
+      c.save(); c.shadowColor = col; c.shadowBlur = 10; c.fillStyle = col;
+      c.beginPath(); c.arc(nx, ny, 4.5, 0, Math.PI * 2); c.fill(); c.restore();
+    });
+    // Light column from the platform up to the cube.
+    const col = c.createLinearGradient(0, base, 0, 70);
+    col.addColorStop(0, "rgba(85,213,233,0.38)"); col.addColorStop(1, "rgba(85,213,233,0)");
+    c.fillStyle = col; c.beginPath(); c.moveTo(cx - 60, base); c.lineTo(cx - 34, 70); c.lineTo(cx + 34, 70); c.lineTo(cx + 60, base); c.closePath(); c.fill();
+
+    // The floating cube.
+    const y0 = 118 + Math.sin(t * 1.3) * 5;
+    const s = 66;
+    const top: [number, number][] = [[cx, y0 - s * 0.62], [cx + s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx - s, y0 - s * 0.05]];
+    const left: [number, number][] = [[cx - s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx, y0 + s * 1.5], [cx - s, y0 + s * 0.93]];
+    const right: [number, number][] = [[cx, y0 + s * 0.52], [cx + s, y0 - s * 0.05], [cx + s, y0 + s * 0.93], [cx, y0 + s * 1.5]];
+    // Orbit ring behind the cube.
+    c.save(); c.strokeStyle = "rgba(120,160,255,0.35)"; c.lineWidth = 1.5;
+    c.beginPath(); c.ellipse(cx, y0 + 40, 112, 30, -0.18, Math.PI, Math.PI * 2); c.stroke(); c.restore();
+    const lerp = (a: [number, number], b: [number, number], k: number): [number, number] => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+    const face = (pts: [number, number][], fill: CanvasGradient | string): void => {
+      c.fillStyle = fill; c.strokeStyle = "#070B12"; c.lineWidth = 3;
       c.beginPath(); pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.closePath(); c.fill(); c.stroke();
-      c.lineWidth = 1.5;
+      // 3×3 pieces: dark seams and a lit top edge on each piece.
+      c.lineWidth = 2.2; c.strokeStyle = "#070B12";
       for (const k of [1 / 3, 2 / 3]) {
-        c.beginPath(); c.moveTo(pts[0][0] + (pts[1][0] - pts[0][0]) * k, pts[0][1] + (pts[1][1] - pts[0][1]) * k);
-        c.lineTo(pts[3][0] + (pts[2][0] - pts[3][0]) * k, pts[3][1] + (pts[2][1] - pts[3][1]) * k); c.stroke();
-        c.beginPath(); c.moveTo(pts[0][0] + (pts[3][0] - pts[0][0]) * k, pts[0][1] + (pts[3][1] - pts[0][1]) * k);
-        c.lineTo(pts[1][0] + (pts[2][0] - pts[1][0]) * k, pts[1][1] + (pts[2][1] - pts[1][1]) * k); c.stroke();
+        const a1 = lerp(pts[0], pts[1], k), b1 = lerp(pts[3], pts[2], k);
+        const a2 = lerp(pts[0], pts[3], k), b2 = lerp(pts[1], pts[2], k);
+        c.beginPath(); c.moveTo(a1[0], a1[1]); c.lineTo(b1[0], b1[1]); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke();
+      }
+      c.fillStyle = "rgba(94,116,153,0.55)";
+      for (let i = 0; i < 9; i++) {
+        const u = (i % 3) / 3 + 0.08, v = Math.floor(i / 3) / 3 + 0.12;
+        const pa = lerp(lerp(pts[0], pts[1], u), lerp(pts[3], pts[2], u), v);
+        c.fillRect(pa[0] - 1, pa[1] - 1, 3, 3);
       }
     };
-    face(top, "#2A3850"); face(left, "#1A2333"); face(right, "#222D42");
-    const gems: [number, number, string][] = [[70, 42 + y, "#3FD8FF"], [49, 77 + y, "#9B7BFF"], [91, 77 + y, "#FFB547"]];
-    for (const [gx, gy, col] of gems) {
-      c.save(); c.shadowColor = nexusPaint.solved ? col : nexusPaint.color; c.shadowBlur = 10 + 6 * pulse;
-      c.fillStyle = col; c.beginPath(); c.moveTo(gx, gy - 6); c.lineTo(gx + 5, gy); c.lineTo(gx, gy + 6); c.lineTo(gx - 5, gy); c.closePath(); c.fill(); c.restore();
+    const tg = c.createLinearGradient(cx - s, y0 - s * 0.6, cx + s, y0 + s * 0.5); tg.addColorStop(0, "#2C3A52"); tg.addColorStop(1, "#1A2334");
+    const lg = c.createLinearGradient(cx - s, 0, cx, 0); lg.addColorStop(0, "#151D2B"); lg.addColorStop(1, "#1E293B");
+    const rg = c.createLinearGradient(cx, 0, cx + s, 0); rg.addColorStop(0, "#243048"); rg.addColorStop(1, "#33425E");
+    face(top, tg); face(left, lg); face(right, rg);
+    // Glowing edges.
+    c.save(); c.strokeStyle = `rgba(120,200,255,${0.35 + 0.25 * pulse})`; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(top[3][0], top[3][1]); c.lineTo(top[0][0], top[0][1]); c.lineTo(top[1][0], top[1][1]);
+    c.moveTo(top[2][0], top[2][1]); c.lineTo(right[3][0], right[3][1]); c.stroke(); c.restore();
+    // Crystal cores in the face centres, with beams in their colours.
+    const centre = (pts: [number, number][]): [number, number] => lerp(lerp(pts[0], pts[1], 0.5), lerp(pts[3], pts[2], 0.5), 0.5);
+    const cores: [[number, number], string, number][] = [[centre(top), "#3FD8FF", -Math.PI / 2], [centre(left), "#9B7BFF", Math.PI * 0.8], [centre(right), "#FFB547", Math.PI * 0.2]];
+    for (const [[gx, gy], colr, dir] of cores) {
+      const glow = colr;
+      for (let i = 0; i < 4; i++) {
+        const a = dir + (i - 1.5) * 0.28;
+        const len = 70 + i * 14;
+        c.save(); c.strokeStyle = glow; c.globalAlpha = 0.25 + 0.2 * Math.sin(t * 2 + i); c.lineWidth = 1.4;
+        c.beginPath(); c.moveTo(gx, gy); c.quadraticCurveTo(gx + Math.cos(a) * len * 0.5, gy + Math.sin(a) * len * 0.3 - 10, gx + Math.cos(a) * len, gy + Math.sin(a) * len * 0.6); c.stroke();
+        const k = (t * 0.5 + i * 0.25) % 1;
+        c.globalAlpha = Math.sin(k * Math.PI); c.fillStyle = glow;
+        c.beginPath(); c.arc(gx + Math.cos(a) * len * k, gy + Math.sin(a) * len * 0.6 * k, 2.2, 0, Math.PI * 2); c.fill(); c.restore();
+      }
+      c.save(); c.shadowColor = glow; c.shadowBlur = 14 + 8 * pulse; c.fillStyle = glow;
+      c.beginPath(); c.moveTo(gx, gy - 11); c.lineTo(gx + 8, gy); c.lineTo(gx, gy + 11); c.lineTo(gx - 8, gy); c.closePath(); c.fill();
+      c.fillStyle = "rgba(255,255,255,0.75)"; c.beginPath(); c.moveTo(gx, gy - 7); c.lineTo(gx + 3, gy); c.lineTo(gx, gy - 1); c.closePath(); c.fill(); c.restore();
+      c.strokeStyle = glow; c.globalAlpha = 0.7; c.lineWidth = 1.2; c.beginPath(); c.arc(gx, gy, 15, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
     }
+    // Front half of the orbit ring with travelling sparks.
+    c.save(); c.strokeStyle = "rgba(120,160,255,0.45)"; c.lineWidth = 1.5;
+    c.beginPath(); c.ellipse(cx, y0 + 40, 112, 30, -0.18, 0, Math.PI); c.stroke();
+    for (let i = 0; i < 3; i++) {
+      const a = t * 0.9 + (i * Math.PI * 2) / 3;
+      const ox = cx + Math.cos(a) * 112 * Math.cos(-0.18) - Math.sin(a) * 30 * Math.sin(-0.18);
+      const oy = y0 + 40 + Math.cos(a) * 112 * Math.sin(-0.18) + Math.sin(a) * 30 * Math.cos(-0.18);
+      c.fillStyle = NEED[(i * 2) % 6]; c.shadowColor = c.fillStyle; c.shadowBlur = 8;
+      c.beginPath(); c.arc(ox, oy, 3, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+    // Holo label.
+    c.fillStyle = "rgba(9,18,36,0.8)"; c.strokeStyle = "rgba(85,213,233,0.6)"; c.lineWidth = 1.5;
+    c.beginPath(); c.roundRect(cx - 62, base + 24, 124, 24, 12); c.fill(); c.stroke();
+    c.fillStyle = nexusPaint.solved ? "#7BD88F" : "#55D5E9"; c.font = "700 12px Segoe UI, sans-serif"; c.textAlign = "center";
+    c.fillText(nexusPaint.label, cx, base + 40);
   },
   // ---------- SCIENCE LAB ----------
   microscope(c, p) {
@@ -568,7 +634,7 @@ const NAT: Record<string, [number, number]> = {
   reactor: [170, 190], battery: [190, 100], inverter: [110, 130], reel: [66, 66], powerdesk: [160, 70], medbed: [160, 110],
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
-  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [140, 150],
+  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [240, 300],
   ltv: [300, 190], drillrig: [160, 200], solarmast: [80, 190], seismo: [130, 80], boulder: [130, 96],
 };
 export const LUNAR_KINDS = new Set(Object.keys(ART));

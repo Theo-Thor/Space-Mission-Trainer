@@ -173,6 +173,25 @@ export class Surface {
     this.inspect.hidden = true;
   }
 
+  get factCount(): number {
+    return this.data.filter((d) => d.kind === "data").length;
+  }
+
+  showFinale(name: string, stats: string[]): void {
+    const finale = must<HTMLElement>("finale");
+    must<HTMLElement>("finale-name").textContent = name;
+    must<HTMLElement>("finale-stats").replaceChildren(...stats.map((s) => {
+      const li = document.createElement("li");
+      li.textContent = s;
+      return li;
+    }));
+    finale.hidden = false;
+  }
+
+  hideFinale(): void {
+    must<HTMLElement>("finale").hidden = true;
+  }
+
   /** Newest entry on top, shown in full; two older ones stay as short lines. */
   logData(kind: "data" | "radio", title: string, body: string, detail: string): void {
     const last = this.data[0];

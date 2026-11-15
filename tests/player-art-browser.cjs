@@ -170,9 +170,18 @@ async function main() {
     await until('window.__SELENE__.snapshot().companionAtHatch','Riley failed to arrive');
     await evaluate('window.__SELENE__.teleport(2608,844)');
     await talk('hatch','NEED_BOARDING');
-    await until('window.__SELENE__.snapshot().phase === "NEED_FLIGHT_SYSTEMS" && window.__SELENE__.snapshot().scene === "ship"','Spacecraft interior did not load');
+    // No spaceship interior and no chapter cards: boarding rolls the flight, touchdown continues at the base.
+    await until('window.__SELENE__.snapshot().scene === "voyage"','Boarding did not start the flight',8000);
+    await evaluate('window.__SELENE__.skipVoyage()');
+    await until('window.__SELENE__.snapshot().scene === "lunar"','Touchdown did not continue at Selene Base');
+    assert(await evaluate('document.querySelector("#arrival").hidden && document.querySelector("#complete").hidden'), 'No chapter cards after the flight');
+    await delay(1600); await screenshot('moon-arrival');
 
     // NEXUS: open from the Grand Hall, play 11 turns, leave, and see the base react.
+    await evaluate('window.__SELENE__.teleport(2390,1720)');
+    await delay(1200); await screenshot('room-medical-dim');
+    await evaluate('window.__SELENE__.teleport(1700,600)');
+    await delay(1200); await screenshot('nexus-pedestal');
     await evaluate('window.__SELENE__.nexus()');
     await until('!document.querySelector("#nexus").hidden','NEXUS did not open',8000);
     await screenshot('nexus-open');
@@ -184,7 +193,7 @@ async function main() {
     await until('!document.querySelector("#nexus-end").hidden','2048 ending did not appear');
     await screenshot('nexus-2048');
     await evaluate('document.querySelector("#nexus-end-leave").click()');
-    await until('document.querySelector("#nexus").hidden && document.querySelector("#objective").innerText.includes("Selene Base is ready")','Base did not react to the solved cube');
+    await until('document.querySelector("#nexus").hidden && /(Selene Base is ready|rescue the scout rover)/.test(document.querySelector("#objective").innerText)','Base did not react to the solved cube');
     await evaluate('window.__SELENE__.teleport(705,1010); window.__SELENE__.interact("jun")');
     await until('(window.__SELENE__.advance(), String(window.__SELENE__.snapshot().line).includes("Every need is full"))','Crew line did not change after NEXUS');
     console.log('NEXUS: opened, 11 turns, 2048 ending, base and crew reacted.');
@@ -229,6 +238,10 @@ async function main() {
     await until('window.__SELENE__.snapshot().scene === "lunar"','EVA did not return to the base',6000);
     await delay(600); await screenshot('eva-12-back');
     console.log('ROVER RESCUE: tilt in, brief, jump, zones, storm shelter, repair, drive home, back in the garage.');
+    await until('!document.querySelector("#finale").hidden','Finale did not appear after NEXUS and the rover',6000);
+    await delay(900); await screenshot('finale');
+    await evaluate('document.querySelector("#finale-continue").click()');
+    await until('document.querySelector("#finale").hidden','Finale did not close');
 
     // OPEN SURFACE: walk out south of the base, examine things; facts land in the Mission data panel.
     const surfaceShot = async (x, y, id, title, name) => {
@@ -246,6 +259,19 @@ async function main() {
     await surfaceShot(395, 3060, 'lu-seismo', 'MOONQUAKES', 'surface-6-seismo');
     assert(await evaluate('document.querySelector("#inspect").hidden'), 'Facts must not open the closable popup');
     console.log('SURFACE: rover, craters, drill, solar masts, boulder track, seismometer; facts in the Mission data panel.');
+
+    // DEMO MENU: from registration straight into the NEXUS cube.
+    await send('Page.reload',{ignoreCache:true});
+    await until('!!window.__SELENE__ && !!document.querySelector("#demo-jump button[data-jump=nexus]")','Demo menu missing');
+    await until('!document.querySelector("#cinematic").hidden || !document.querySelector("#registration").hidden','Intro did not start');
+    await evaluate('document.querySelector("#skip-cine, #cinematic button")?.click()');
+    await until('document.querySelector("#cinematic").hidden && !document.querySelector("#registration").hidden','Registration did not appear',12000);
+    await delay(300); fs.writeFileSync(path.join(output,'demo-menu.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+    await evaluate('document.querySelector("#demo-jump button[data-jump=nexus]").click()');
+    await until('!document.querySelector("#nexus").hidden','Demo jump to NEXUS failed',12000);
+    await delay(900); await screenshot('demo-nexus');
+    await evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
+    console.log('DEMO MENU: jumped from registration straight into NEXUS.');
 
     // One broken frame must not crash the renderer or prevent keyboard movement.
     await send('Fetch.enable',{patterns:[{urlPattern:'*uniform-front.png',requestStage:'Request'}]});

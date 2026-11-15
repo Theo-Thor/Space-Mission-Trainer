@@ -1,6 +1,8 @@
 // The NEXUS screen: Moon card, need meters, suggested moves, and the 2048 ending around the 3D cube.
 import { FACE_ORDER, NEEDS, NexusCube, TOTAL_TURNS, type Move, type NexusRun } from "./cube";
 import { NexusView } from "./view";
+import { EARTH_ELEV, SKY_STEP_HOURS, SUN_ELEV, skySentence } from "../content/sky";
+
 
 function must<T extends HTMLElement>(root: ParentNode, selector: string): T {
   const el = root.querySelector<T>(selector);
@@ -29,6 +31,8 @@ export class NexusScreen {
   private readonly choices: HTMLElement;
   private readonly tip: HTMLElement;
   private readonly ending: HTMLElement;
+  private readonly sky: HTMLElement;
+  private readonly chart: HTMLCanvasElement;
 
   constructor(private readonly section: HTMLElement, private run: NexusRun) {
     this.stage = must(section, "#nexus-stage");
@@ -39,6 +43,8 @@ export class NexusScreen {
     this.choices = must(section, "#nexus-choices");
     this.tip = must(section, "#nexus-tip");
     this.ending = must(section, "#nexus-end");
+    this.sky = must(section, "#nexus-sky");
+    this.chart = must<HTMLCanvasElement>(section, "#nexus-chart");
     this.meters.innerHTML = FACE_ORDER.map(
       (f) =>
         `<div class="nexus-meter"><span class="nexus-swatch" style="--c:${NEEDS[f].color}"></span><span class="nexus-name">${NEEDS[f].name}</span><span class="nexus-pips" data-face="${f}">${'<i></i>'.repeat(9)}</span></div>`,
@@ -90,6 +96,40 @@ export class NexusScreen {
     return !!move && this.view?.request(move) === "turned";
   }
 
+  /** 30 days of real elevation data with a marker on today's turn. */
+  private drawChart(day: number): void {
+    const c = this.chart.getContext("2d");
+    if (!c) return;
+    const w = this.chart.width;
+    const h = this.chart.height;
+    const pad = 10;
+    const y = (deg: number): number => h / 2 - (deg / 8) * (h / 2 - pad);
+    const x = (i: number): number => pad + (i / (EARTH_ELEV.length - 1)) * (w - pad * 2);
+    c.clearRect(0, 0, w, h);
+    c.fillStyle = "rgba(10, 22, 44, 0.9)";
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "rgba(255,255,255,0.04)";
+    c.fillRect(0, y(0), w, h - y(0));
+    c.strokeStyle = "rgba(201, 211, 222, 0.5)";
+    c.setLineDash([6, 6]);
+    c.beginPath(); c.moveTo(0, y(0)); c.lineTo(w, y(0)); c.stroke();
+    c.setLineDash([]);
+    const plot = (data: number[], color: string): void => {
+      c.strokeStyle = color; c.lineWidth = 3; c.beginPath();
+      data.forEach((v, i) => (i ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v))));
+      c.stroke();
+    };
+    plot(EARTH_ELEV, "#3FA0FF");
+    plot(SUN_ELEV, "#FFB547");
+    const mx = x((day * 24) / SKY_STEP_HOURS);
+    c.strokeStyle = "#55D5E9"; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(mx, pad); c.lineTo(mx, h - pad); c.stroke();
+    c.fillStyle = "#E8EFF5"; c.font = "700 20px Segoe UI, sans-serif"; c.textAlign = "left";
+    c.fillText("horizon", 14, y(0) - 6);
+    c.fillStyle = "#3FA0FF"; c.fillText("Earth", 14, 28);
+    c.fillStyle = "#FFB547"; c.fillText("Sun ≤ 1°", w - 110, y(0) - 6);
+  }
+
   private render(): void {
     const run = this.run;
     const counts = run.cube.counts();
@@ -106,6 +146,8 @@ export class NexusScreen {
       return;
     }
     const step = run.step!;
+    this.sky.textContent = skySentence(step.day);
+    this.drawChart(step.day);
     this.turn.textContent = `Turn ${run.turns + 1} of ${TOTAL_TURNS}`;
     this.title.textContent = run.secondOfPair ? "Now the other side" : step.title;
     this.text.textContent = run.secondOfPair ? "Both orders end in the same place. Turn the other glowing layer." : step.text;

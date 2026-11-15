@@ -37,8 +37,13 @@ function cleanHaze(image: HTMLImageElement): CanvasImageSource {
   const px = data.data;
   for (let i = 3; i < px.length; i += 4) if (px[i] < 24) px[i] = 0;
   x.putImageData(data, 0, 0);
-  c.dataset.src = image.src;
-  return c;
+  // Copy into a normal (GPU-backed) canvas: drawing from a read-optimised canvas re-uploads it every frame.
+  const fast = document.createElement("canvas");
+  fast.width = c.width;
+  fast.height = c.height;
+  fast.getContext("2d")?.drawImage(c, 0, 0);
+  fast.dataset.src = image.src;
+  return fast;
 }
 function loadWalk(outfit: string): WalkSprite {
   const image = new Image();

@@ -73,6 +73,11 @@ export class EvaMission {
   repair = { step: 0, progress: 0, taps: 0 };
   rover = { x: ROVER_X, y: 560, vx: 0, vy: 0, angle: 0, onGround: true };
 
+  /** Real NASA JPL Horizons sky for today's date (set by the game). */
+  skyLines: string[] = [];
+  sunDeg = 0.6;
+  earthDeg = 2;
+
   stats = { jumps: 0, maxHeight: 0, maxAir: 0, tethers: 0, start: 0 };
   private jumpStartY = 0;
   private jumpTop = 0;

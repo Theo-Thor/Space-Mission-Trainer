@@ -121,7 +121,7 @@ function drawSky(ctx: Ctx, W: number, m: EvaMission): void {
   ctx.globalAlpha = 1;
   // Low Sun just above the far hills on the right.
   const sx = W * 0.9;
-  const sy = 470 - cy * 0.2;
+  const sy = 478 - m.sunDeg * 22 - cy * 0.2;
   const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, 260);
   sun.addColorStop(0, "rgba(255, 246, 220, 0.95)");
   sun.addColorStop(0.08, "rgba(255, 236, 200, 0.55)");
@@ -130,7 +130,7 @@ function drawSky(ctx: Ctx, W: number, m: EvaMission): void {
   ctx.fillRect(sx - 260, sy - 260, 520, 520);
   // Earth, low on the horizon, lit from the right.
   const ex = W * 0.24 - m.camX * 0.008;
-  const ey = 452 - cy * 0.15;
+  const ey = 470 - m.earthDeg * 9 - cy * 0.15;
   ctx.save();
   ctx.beginPath();
   ctx.arc(ex, ey, 30, 0, Math.PI * 2);
@@ -923,7 +923,7 @@ function drawHud(ctx: Ctx, w: number, m: EvaMission): void {
   ctx.fillText(`FACTS ${found}/${FACTS.length + 1}`, x + 150, y + 56);
   ctx.fillStyle = "#8FA9D6";
   ctx.textAlign = "right";
-  ctx.fillText("g = 1.62 m/s²", x + pw - 14, y + 56);
+  ctx.fillText(`Sun ${m.sunDeg.toFixed(2)}° · Earth ${m.earthDeg.toFixed(1)}°`, x + pw - 14, y + 56);
   if (m.storm.state === "warning") {
     ctx.textAlign = "center";
     ctx.fillStyle = Math.sin(m.time * 8) > 0 ? "#FF6B5B" : C.amber;
@@ -965,7 +965,7 @@ function card(ctx: Ctx, w: number, h: number, cw: number, ch: number): [number, 
 
 function drawBrief(ctx: Ctx, w: number, h: number, m: EvaMission): void {
   const cw = Math.min(520, w - 32);
-  const [, y] = card(ctx, w, h, cw, 300);
+  const [, y] = card(ctx, w, h, cw, 330);
   ctx.textAlign = "center";
   ctx.fillStyle = "#8FA9D6";
   ctx.font = `700 13px ${FONT}`;
@@ -979,12 +979,17 @@ function drawBrief(ctx: Ctx, w: number, h: number, m: EvaMission): void {
     ctx.fillStyle = i === 0 ? C.amber : C.white;
     ctx.fillText(g, w / 2, y + 130 + i * 30);
   });
-  ctx.fillStyle = C.cyan;
-  ctx.font = `14px ${FONT}`;
-  ctx.fillText("Moon gravity 1.62 m/s² · No air, no sound, long shadows", w / 2, y + 236);
+  ctx.font = `13px ${FONT}`;
+  m.skyLines.forEach((line, i) => {
+    ctx.fillStyle = i === 0 ? C.cyan : "#CFE6FF";
+    ctx.fillText(line, w / 2, y + 226 + i * 19);
+  });
+  ctx.fillStyle = "#8FA9D6";
+  ctx.font = `11px ${FONT}`;
+  ctx.fillText("Real sky data: NASA JPL Horizons, 89.5° S · Moon gravity 1.62 m/s²", w / 2, y + 274);
   ctx.fillStyle = Math.sin(m.time * 4) > 0 ? C.white : "#8FA9D6";
   ctx.font = `700 15px ${FONT}`;
-  ctx.fillText("Press SPACE to start", w / 2, y + 272);
+  ctx.fillText("Press SPACE to start", w / 2, y + 304);
 }
 
 function drawEnd(ctx: Ctx, w: number, h: number, m: EvaMission): void {

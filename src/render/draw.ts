@@ -30,6 +30,8 @@ export interface PaintActor {
 
 export interface Paint {
   footprints?: { x: number; y: number; a: number }[];
+  /** NEXUS need level per lunar room id (0–9), with its name and colour. */
+  roomNeeds?: Record<string, { name: string; color: string; level: number }>;
   time: number;
   cameraX: number;
   cameraY: number;
@@ -218,6 +220,17 @@ function drawLunarFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
   }
   layers.sort((a, b) => a.z - b.z);
   for (const layer of layers) layer.draw();
+  // The base reflects NEXUS: a room dims when its need runs low, and shows its meter.
+  for (const room of lunarRooms) {
+    const need = paint.roomNeeds?.[room.id];
+    if (!need || !visible(room.x, room.y, room.w, room.h)) continue;
+    const low = 1 - need.level / 9;
+    if (low > 0.01) {
+      ctx.fillStyle = `rgba(2, 5, 12, ${0.5 * low})`;
+      ctx.fillRect(room.x + 24, room.y + 24, room.w - 48, room.h - 48);
+    }
+    drawNeedChip(ctx, room.x + room.w - 196, room.y + 36, need, paint.time);
+  }
 
   ctx.restore();
   ctx.fillStyle = "rgba(16, 27, 46, 0.18)";
@@ -323,6 +336,29 @@ function drawRegolith(ctx: CanvasRenderingContext2D): void {
   ctx.font = "700 20px Segoe UI, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("LUNAR SURFACE — SUIT REQUIRED (EVA)", x + 24, y + h - 20);
+}
+
+function drawNeedChip(ctx: CanvasRenderingContext2D, x: number, y: number, need: { name: string; color: string; level: number }, time: number): void {
+  const critical = need.level <= 2;
+  ctx.fillStyle = "rgba(9, 18, 36, 0.88)";
+  ctx.strokeStyle = critical && Math.sin(time * 5) > 0 ? "#E0624F" : need.color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x, y, 172, 30, 15);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = need.color;
+  ctx.beginPath();
+  ctx.arc(x + 16, y + 15, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = "700 13px Segoe UI, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#E8EFF5";
+  ctx.fillText(need.name.toUpperCase(), x + 28, y + 20);
+  for (let i = 0; i < 9; i += 1) {
+    ctx.fillStyle = i < need.level ? need.color : "#22324A";
+    ctx.fillRect(x + 92 + i * 8, y + 9, 6, 12);
+  }
 }
 
 /** A crater seen from above: dark bowl, sunlit far rim, raised lip and a few ejecta rays. */
