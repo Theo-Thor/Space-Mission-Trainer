@@ -24,19 +24,38 @@ function loadOutfit(outfit: "uniform" | "spacesuit"): Record<Dir, Sprite> {
 const uniform = loadOutfit("uniform");
 const spacesuit = loadOutfit("spacesuit");
 const ROW: Record<Dir, number> = { down: 0, up: 1, left: 2, right: 3 };
-function loadWalk(outfit: string): Sprite {
+type WalkSprite = { image: HTMLImageElement; frames: CanvasImageSource; ready: boolean };
+/** The walk atlases carry a faint grey haze (alpha ≈ 6) around each frame; clear it once on load. */
+function cleanHaze(image: HTMLImageElement): CanvasImageSource {
+  const c = document.createElement("canvas");
+  c.width = image.naturalWidth;
+  c.height = image.naturalHeight;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  if (!x) return image;
+  x.drawImage(image, 0, 0);
+  const data = x.getImageData(0, 0, c.width, c.height);
+  const px = data.data;
+  for (let i = 3; i < px.length; i += 4) if (px[i] < 24) px[i] = 0;
+  x.putImageData(data, 0, 0);
+  c.dataset.src = image.src;
+  return c;
+}
+function loadWalk(outfit: string): WalkSprite {
   const image = new Image();
-  const sprite = { image, ready: false };
-  image.onload = () => { sprite.ready = image.naturalWidth === 1280 && image.naturalHeight === 2048; };
+  const sprite: WalkSprite = { image, frames: image, ready: false };
+  image.onload = () => {
+    sprite.ready = image.naturalWidth === 1280 && image.naturalHeight === 2048;
+    if (sprite.ready) sprite.frames = cleanHaze(image);
+  };
   image.onerror = () => console.warn(`Walk artwork unavailable; using idle pose: ${image.src}`);
   image.src = `/assets/astronaut-v2/${outfit}-walk.png`;
   return sprite;
 }
 const uniformWalk = loadWalk("uniform");
 const spacesuitWalk = loadWalk("spacesuit");
-const poseCanvases = new Map<Sprite, HTMLCanvasElement>();
+const poseCanvases = new Map<WalkSprite, HTMLCanvasElement>();
 
-function pose(idle: Sprite, walk: Sprite, actor: PaintActor): CanvasImageSource {
+function pose(idle: Sprite, walk: WalkSprite, actor: PaintActor): CanvasImageSource {
   const gait = actor.gait ?? (actor.walking ? 1 : 0);
   if (!walk.ready || gait < 0.01) return idle.image;
   let canvas = poseCanvases.get(walk);
@@ -55,7 +74,7 @@ function pose(idle: Sprite, walk: Sprite, actor: PaintActor): CanvasImageSource 
   context.drawImage(idle.image, 0, 0);
   context.globalCompositeOperation = "lighter";
   context.globalAlpha = gait;
-  context.drawImage(walk.image, frame * FRAME.width, ROW[actor.facing] * FRAME.height,
+  context.drawImage(walk.frames, frame * FRAME.width, ROW[actor.facing] * FRAME.height,
     FRAME.width, FRAME.height, 0, 0, FRAME.width, FRAME.height);
   context.globalAlpha = 1;
   context.globalCompositeOperation = "source-over";
@@ -99,10 +118,12 @@ export function drawPlayerArt(ctx: CanvasRenderingContext2D, actor: PaintActor, 
   const breath = Math.sin(time * 2.1 + actor.bob) * (1 - gait);
   ctx.save();
   ctx.translate(actor.x, actor.y);
-  ctx.fillStyle = "rgba(6, 10, 18, 0.4)";
-  ctx.beginPath();
-  ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (actor.shadow !== false) {
+    ctx.fillStyle = "rgba(6, 10, 18, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Reuse the existing gait/lean envelope; the approved frames remain intact.
   ctx.translate(0, -Math.abs(Math.sin(actor.walkPhase)) * gait * 0.9 + (actor.seated ? 8 : 0));
   ctx.rotate(actor.lean ?? 0);

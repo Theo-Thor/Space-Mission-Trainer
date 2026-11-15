@@ -123,6 +123,8 @@ function dc(kind: string, x: number, y: number, w: number, h: number, color?: st
 
 // GRAND HALL: the NEXUS pedestal sits in the middle of the base.
 p("nexus", 1630, 280, 1, { id: "lu-nexus", prompt: "E — Examine NEXUS", radius: 120, ax: 1700, ay: 460 });
+// ROVER EXIT: the way out to the side-view EVA level (nothing is drawn; it is the doorway itself).
+lunarProps.push({ id: "lu-eva", kind: "eva-hatch", x: 740, y: 1780, w: 60, h: 10, blocks: false, prompt: "E — Go outside: Rover Rescue", radius: 100, ax: 770, ay: 1800 });
 // SCIENCE LAB
 dc("grate", 560, 1010, 360, 110); dc("stripe", 478, 1118, 544, 4, "rgba(85,213,233,0.25)");
 p("freezer", 490, 802); p("microscope", 600, 812); p("centrifuge", 830, 806);

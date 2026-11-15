@@ -24,6 +24,8 @@ export interface PaintActor {
   suitBlend: number;
   radioLight: boolean;
   seated?: boolean;
+  /** Side-view scenes draw their own ground shadow. */
+  shadow?: boolean;
 }
 
 export interface Paint {

@@ -7,6 +7,8 @@ import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { drawVoyage } from "./render/voyage-art";
 import { nexusPaint } from "./render/lunar-art";
 import { NEEDS, NexusRun, TOTAL_TURNS } from "./nexus/cube";
+import { EvaMission, type EvaInput } from "./eva/eva";
+import { drawEva } from "./eva/eva-art";
 import { CUES, VOYAGE_DURATION } from "./content/voyage";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
@@ -107,7 +109,12 @@ export class Game {
   private rileyWalking = false;
   private rileyIndex = 0;
   private rileyShip: "facility" | "hold" | "enter" | "wait" | "seat" | "seated" = "facility";
-  private scene: "facility" | "ship" | "voyage" | "lunar" = "facility";
+  private scene: "facility" | "ship" | "voyage" | "lunar" | "eva" = "facility";
+  /** Rover Rescue, the side-view EVA level. */
+  eva: EvaMission | null = null;
+  private evaSnapshot: HTMLCanvasElement | null = null;
+  private evaRadio = 0;
+  roverRescued = false;
   /** The colony's NEXUS cube. It keeps its state between visits. */
   readonly nexus = new NexusRun();
   nexusOpen = false;
@@ -286,6 +293,11 @@ export class Game {
       this.keys.endFrame();
       return;
     }
+    if (this.scene === "eva") {
+      this.updateEva(dt);
+      this.keys.endFrame();
+      return;
+    }
     if (this.completeTimer > 0) {
       this.completeTimer -= dt;
       if (this.completeTimer <= 0) this.startVoyage();
@@ -341,6 +353,10 @@ export class Game {
     }
     if (this.scene === "voyage") {
       drawVoyage(this.ctx, this.viewW, this.viewH, this.voyageT);
+      return;
+    }
+    if (this.scene === "eva") {
+      if (this.eva) drawEva(this.ctx, this.viewW, this.viewH, this.eva, this.evaSnapshot);
       return;
     }
     const paintActors = this.people().map((actor) => ({ ...actor }));
@@ -762,6 +778,10 @@ export class Game {
   }
 
   private handleLunarInteract(id: string): void {
+    if (id === "lu-eva") {
+      this.startEva();
+      return;
+    }
     if (id === "lu-nexus") {
       this.nexusOpen = true;
       this.ui.hideInspect();
@@ -935,10 +955,93 @@ export class Game {
     }
   }
 
+  /** Leave through the Rover Exit: the view tilts from top-down to the side-view Moon level. */
+  startEva(): void {
+    if (this.scene !== "lunar") return;
+    const snap = document.createElement("canvas");
+    snap.width = this.canvas.width;
+    snap.height = this.canvas.height;
+    snap.getContext("2d")?.drawImage(this.canvas, 0, 0);
+    this.evaSnapshot = snap;
+    const counts = this.nexus.cube.counts();
+    this.eva = new EvaMission({ energy: counts.px, air: counts.ny, shield: counts.pz }, {
+      radio: (text) => this.radio.enqueue({ id: `EVA${this.evaRadio++}`, sender: "RILEY MORGAN", text }),
+      toast: (title, body) => this.ui.pushToast(title, body),
+      fact: (title, body, source) => {
+        this.ui.showInspect(title, body, source);
+        this.inspectTime = 7;
+      },
+      sound: (kind) => {
+        if (kind === "pickup" || kind === "repair") this.sfx.blip();
+        else if (kind === "alarm") this.sfx.voyage("beep");
+        else if (kind === "land") this.sfx.voyage("pulse");
+        else if (kind === "done") this.sfx.voyage("touchdown");
+      },
+      done: () => this.exitEva(),
+    });
+    this.scene = "eva";
+    this.player.walking = false;
+    this.ui.hideInspect();
+    this.ui.setObjective("Rover Rescue: find 3 parts");
+    this.ui.setLocation("LUNAR SURFACE · EVA");
+    this.ui.setPrompt(null);
+    this.shipFade = 0;
+    this.ui.setFade(0);
+    this.sfx.voyage("beep");
+  }
+
+  private updateEva(dt: number): void {
+    const eva = this.eva;
+    if (!eva) return;
+    this.ui.update(dt);
+    const k = this.keys;
+    const input: EvaInput = {
+      left: k.held("arrowleft") || k.held("a"),
+      right: k.held("arrowright") || k.held("d"),
+      jump: k.consume(" ") || k.consume("w") || k.consume("arrowup"),
+      use: k.consume("e") || k.consume("enter"),
+      useHeld: k.held("e") || k.held("enter"),
+    };
+    eva.setView(this.viewW, this.viewH);
+    eva.update(dt, input);
+    if (this.eva !== eva) return;
+    const objective =
+      eva.phase === "drive" ? "Drive the rover home" :
+      eva.phase === "repair" ? "Repair the scout rover" :
+      eva.parts.size === 3 ? "Bring the parts to the rover" : `Rover Rescue: find parts (${eva.parts.size}/3)`;
+    this.ui.setObjective(objective);
+    this.updateRadios(dt);
+    if (this.inspectTime > 0) {
+      this.inspectTime -= dt;
+      if (this.inspectTime <= 0) this.ui.hideInspect();
+    }
+  }
+
+  /** Back through the airlock into the garage. */
+  private exitEva(): void {
+    this.eva = null;
+    this.evaSnapshot = null;
+    this.scene = "lunar";
+    this.roverRescued = true;
+    this.player.x = 770;
+    this.player.y = 1740;
+    this.player.facing = "up";
+    this.player.walking = false;
+    this.animator.track(this.player);
+    this.ui.hideInspect();
+    this.ui.setObjective(this.nexus.done ? "Selene Base is ready" : "Examine NEXUS in the Grand Hall");
+    this.ui.pushToast("ROVER RESCUED", "Signal relay online · the scout rover is home");
+    this.shipFade = 0;
+    this.ui.setFade(0);
+    this.placeCamera(0);
+  }
+
   /** What the Moon crew say depends on the cube. */
   private lunarLine(): string {
     const run = this.nexus;
+    if (run.done && this.roverRescued) return "Every need is full and the rover is home. You did it, {playerName}!";
     if (run.done) return "Every need is full. You did it, {playerName}!";
+    if (this.roverRescued && run.turns === 0) return "Thanks for rescuing the rover! Now check NEXUS in the Grand Hall.";
     if (run.turns === 0) return `${NPC_GREETING} Have you seen NEXUS in the Grand Hall?`;
     const low = NEEDS[run.lowest()].name.toLowerCase();
     return `Our ${low} is running low. NEXUS can help — ${TOTAL_TURNS - run.turns} turns to go.`;

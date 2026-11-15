@@ -96,8 +96,9 @@ async function main() {
           const name=source.src.split('/').pop();
           if(!window.__artCheck.environment.includes(name))window.__artCheck.environment.push(name);
         }
-        if(source instanceof HTMLImageElement && source.src.includes('/astronaut-v2/')) {
-          const name=source.src.split('/').pop();
+        const artSrc=source instanceof HTMLImageElement ? source.src : (source && source.dataset && source.dataset.src) || '';
+        if(artSrc.includes('/astronaut-v2/')) {
+          const name=artSrc.split('/').pop();
           if(name.endsWith('-walk.png')) {
             const key=name+':'+args[1];
             const frames=window.__artCheck.walkFrames[key]??=[];
@@ -187,6 +188,47 @@ async function main() {
     await evaluate('window.__SELENE__.teleport(705,1010); window.__SELENE__.interact("jun")');
     await until('(window.__SELENE__.advance(), String(window.__SELENE__.snapshot().line).includes("Every need is full"))','Crew line did not change after NEXUS');
     console.log('NEXUS: opened, 11 turns, 2048 ending, base and crew reacted.');
+
+    // ROVER RESCUE: side-view EVA from the Rover Exit, through every zone, and back to the base.
+    await until('(window.__SELENE__.advance(), !window.__SELENE__.snapshot().dialogue)','Dialogue did not close');
+    await evaluate('window.__SELENE__.teleport(770,1790)');
+    await delay(300);
+    await until('(window.__SELENE__.interact("lu-eva"), window.__SELENE__.evaState() !== null)','EVA did not open');
+    await until('window.__SELENE__.evaState()?.phase === "enter"','EVA did not start from the Rover Exit');
+    await delay(900); await screenshot('eva-0-tilt');
+    await until('window.__SELENE__.evaState()?.phase === "brief"','EVA briefing did not appear',6000);
+    await delay(400); await screenshot('eva-1-brief');
+    await key(' ', 60);
+    await until('window.__SELENE__.evaState()?.phase === "walk"','EVA did not start walking');
+    await key('d', 900);
+    await key(' ', 60); await delay(500); await screenshot('eva-2-jump');
+    await delay(2200);
+    const evaShot = async (x, name, wait = 900) => { await evaluate(`window.__SELENE__.evaDo("teleport", ${x})`); await delay(wait); await screenshot(name); };
+    await evaShot(2500, 'eva-3-boulders', 2400);
+    await evaShot(3800, 'eva-4-ridge');
+    await evaShot(5000, 'eva-5-crater');
+    await evaShot(6400, 'eva-6-storm-warning', 1500);
+    await evaluate('window.__SELENE__.evaDo("teleport", 7130)');
+    await until('window.__SELENE__.evaState().storm === "active"','Storm did not start',25000);
+    await delay(800); await screenshot('eva-7-storm-shelter');
+    await until('window.__SELENE__.evaState().storm === "clear"','Storm did not clear',10000);
+    await evaluate('window.__SELENE__.evaDo("parts")');
+    await evaShot(8190, 'eva-8-rover');
+    await key('e', 60);
+    await until('window.__SELENE__.evaState().phase === "repair"','Repair did not start');
+    await key('e', 900); await screenshot('eva-9-repair');
+    await evaluate('window.__SELENE__.evaDo("repair")');
+    await until('window.__SELENE__.evaState().phase === "drive"','Drive did not start');
+    await evaluate('window.__SELENE__.evaDo("drive", 5200)');
+    await key('a', 1500); await screenshot('eva-10-bridge');
+    await evaluate('window.__SELENE__.evaDo("drive", 700)');
+    await key('a', 3000);
+    await until('window.__SELENE__.evaState().phase === "end"','Drive did not reach the airlock',8000);
+    await delay(1400); await screenshot('eva-11-end');
+    await key('e', 60);
+    await until('window.__SELENE__.snapshot().scene === "lunar"','EVA did not return to the base',6000);
+    await delay(600); await screenshot('eva-12-back');
+    console.log('ROVER RESCUE: tilt in, brief, jump, zones, storm shelter, repair, drive home, back in the garage.');
 
     // One broken frame must not crash the renderer or prevent keyboard movement.
     await send('Fetch.enable',{patterns:[{urlPattern:'*uniform-front.png',requestStage:'Request'}]});

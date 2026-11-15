@@ -143,6 +143,9 @@ declare global {
       lunar: () => void;
       nexus: () => void;
       nexusPlay: (index?: number) => boolean;
+      eva: () => void;
+      evaState: () => Record<string, unknown> | null;
+      evaDo: (command: string, value?: number) => void;
     };
   }
 }
@@ -183,6 +186,24 @@ window.__SELENE__ = {
     tryOpen();
   },
   nexusPlay: (index = 0) => nexusScreen.playSuggested(index),
+  eva: () => {
+    if (game.snapshot().scene !== "lunar") window.__SELENE__?.lunar();
+    game.teleport(770, 1790);
+    game.startEva();
+  },
+  evaState: () => {
+    const m = game.eva;
+    if (!m) return null;
+    return { phase: m.phase, x: Math.round(m.body.x), y: Math.round(m.body.y), parts: m.parts.size, facts: m.facts.size, storm: m.storm.state, o2: Math.round(m.o2), checkpoint: m.checkpoint, roverX: Math.round(m.rover.x) };
+  },
+  evaDo: (command, value = 0) => {
+    const m = game.eva;
+    if (!m) return;
+    if (command === "teleport") m.debugTeleport(value);
+    if (command === "parts") m.debugCollectAll();
+    if (command === "repair") m.debugFinishRepair();
+    if (command === "drive") m.debugDriveTo(value);
+  },
 };
 
 requestAnimationFrame(frame);
