@@ -377,3 +377,20 @@ label { display: block; text-align: left; margin-bottom: 0.4rem; color: #b7c5d4;
   #nexus .nexus-note, #nexus .nexus-help { display: none; }
 }
 #nexus-leave, #nexus-end-leave { background: rgba(16, 33, 72, 0.9); color: #e8eff5; border: 1px solid rgba(85, 213, 233, 0.55); border-radius: 999px; padding: 0.55rem 1rem; }
+
+/* ---------- Mission data: always visible, nothing to close ---------- */
+#datalog { position: absolute; left: 1rem; bottom: 1rem; width: min(21rem, calc(100vw - 2rem)); margin: 0; padding: 0.6rem 0.75rem; background: rgba(9, 18, 36, 0.82); border: 1px solid rgba(85, 213, 233, 0.4); border-radius: 12px; pointer-events: none; transition: bottom 0.4s ease; }
+#datalog.above-hint { bottom: 4.4rem; }
+#datalog.fresh { animation: datalog-in 0.6s ease; }
+@keyframes datalog-in { from { border-color: #f0a84b; box-shadow: 0 0 18px rgba(240, 168, 75, 0.45); } to { border-color: rgba(85, 213, 233, 0.4); box-shadow: none; } }
+#datalog .datalog-head { margin: 0 0 0.35rem; font-size: 0.68rem; letter-spacing: 0.16em; color: #8fa9d6; }
+#datalog-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+#datalog-list li { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.74rem; line-height: 1.35; color: #8fa9d6; }
+#datalog-list li:not(.latest) span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#datalog-list li strong { font-size: 0.7rem; letter-spacing: 0.06em; color: #c9d3de; }
+#datalog-list li.latest { padding-bottom: 0.35rem; border-bottom: 1px solid rgba(85, 213, 233, 0.2); }
+#datalog-list li.latest strong { color: #f0a84b; font-size: 0.78rem; }
+#datalog-list li.latest.radio strong { color: #55d5e9; }
+#datalog-list li.latest span { color: #e8eff5; font-size: 0.82rem; }
+#datalog-list li em { font-style: normal; font-size: 0.68rem; color: #7fa3bd; }
+@media (max-width: 760px) { #datalog { width: calc(100vw - 2rem); } #datalog-list li:not(.latest) { display: none; } }

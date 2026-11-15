@@ -62,7 +62,112 @@ type Painter = (c: Ctx, p: LP, t: number) => void;
 /** What the NEXUS pedestal shows in the base. The game updates it after each visit. */
 export const nexusPaint = { color: "#55D5E9", solved: false };
 
+/** A mesh tyre seen from the side-front: dark ring, diamond mesh, hub. */
+function meshWheel(c: Ctx, x: number, y: number, w: number, h: number, far = false): void {
+  blk(c, x, y, w, h, Math.min(w, h) * 0.32, far ? "#0B1118" : "#161E28", 2.5);
+  c.save(); rr(c, x + 3, y + 3, w - 6, h - 6, Math.min(w, h) * 0.28); c.clip();
+  c.strokeStyle = far ? "rgba(110,125,140,0.35)" : "rgba(170,185,200,0.55)"; c.lineWidth = 1.4;
+  for (let i = -h; i < w + h; i += 8) { c.beginPath(); c.moveTo(x + i, y); c.lineTo(x + i + h, y + h); c.moveTo(x + i + h, y); c.lineTo(x + i, y + h); c.stroke(); }
+  c.restore();
+  blk(c, x + w * 0.3, y + h * 0.3, w * 0.4, h * 0.4, 6, far ? K.slate : K.mid, 2);
+  led(c, x + w / 2, y + h / 2, far ? K.steel : K.light, 3);
+}
+
 const ART: Record<string, Painter> = {
+  // ---------- OPEN SURFACE ----------
+  ltv(c, p, t) {
+    shadow(c, p, 0.5);
+    // Far-side wheels peek out behind the frame.
+    meshWheel(c, 30, 58, 40, 42, true); meshWheel(c, 232, 58, 40, 42, true);
+    // Rear deck: tilted solar panel.
+    blk(c, 24, 34, 84, 30, 4, vgrad(c, 34, 30, "#2E4C7E", K.navy2), 2.5);
+    c.strokeStyle = "rgba(85,213,233,0.55)"; c.lineWidth = 1;
+    for (let i = 1; i < 6; i++) { c.beginPath(); c.moveTo(24 + i * 14, 35); c.lineTo(24 + i * 14, 63); c.stroke(); }
+    c.beginPath(); c.moveTo(25, 49); c.lineTo(107, 49); c.stroke();
+    c.fillStyle = "rgba(150,140,120,0.35)"; c.beginPath(); c.ellipse(46, 56, 16, 5, 0, 0, Math.PI * 2); c.fill();
+    // Chassis deck with frame rails and a truss underneath.
+    blk(c, 16, 66, 268, 44, 10, vgrad(c, 66, 44, "#F4F7FA", K.light));
+    line(c, [26, 112, 274, 112], K.steel, 5);
+    for (let i = 0; i < 9; i++) line(c, [34 + i * 28, 112, 48 + i * 28, 124], K.mid, 2.5);
+    line(c, [26, 124, 274, 124], K.steel, 4);
+    blk(c, 84, 108, 132, 22, 5, vgrad(c, 108, 22, K.navy, K.navy2), 2.5);
+    c.fillStyle = K.orange; c.fillRect(88, 124, 124, 3);
+    c.fillStyle = K.cyan; c.font = "700 9px Segoe UI, sans-serif"; c.textAlign = "left"; c.fillText("LTV-2 · SELENE", 92, 120);
+    for (let i = 0; i < 5; i++) blk(c, 170 + i * 8, 112, 4, 8, 1, K.dark, 1);
+    // Two seats with backrests, and the driver console.
+    for (const sx of [116, 168]) {
+      blk(c, sx - 4, 34, 30, 36, 8, vgrad(c, 34, 36, K.slate, K.navy2), 2.5);
+      blk(c, sx - 8, 66, 38, 14, 5, K.navy, 2.5);
+      c.fillStyle = K.orange; c.fillRect(sx + 2, 40, 18, 3);
+    }
+    blk(c, 214, 44, 46, 30, 6, K.dark, 2.5); screen(c, 218, 48, 38, 18, "bars");
+    line(c, [208, 74, 214, 58], K.mid, 3); led(c, 214, 56, K.red, 3);
+    // Mast: camera head, high-gain dish, hazard light.
+    line(c, [52, 66, 52, -18], K.mid, 4);
+    blk(c, 38, -30, 30, 16, 4, K.ivory, 2.5); led(c, 62, -22, K.cyan, 3.4);
+    c.save(); c.translate(80, -40); c.rotate(-0.5);
+    c.fillStyle = K.ivory; c.strokeStyle = K.out; c.lineWidth = 2.5; c.beginPath(); c.ellipse(0, 0, 20, 9, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = K.light; c.beginPath(); c.ellipse(0, 1, 13, 5, 0, 0, Math.PI * 2); c.fill();
+    line(c, [0, 0, 0, -12], K.steel, 2); c.restore();
+    line(c, [52, -10, 74, -34], K.steel, 2.5);
+    led(c, 52, -36, Math.sin(t * 5) > 0 ? K.orange : "#7A4B1E", 4);
+    // Near wheels with fenders and suspension arms.
+    for (const wx of [18, 230]) {
+      const toward = wx < 100 ? 1 : -1;
+      line(c, [wx + 26, 124, wx + 26 + toward * 30, 108], K.steel, 4);
+      line(c, [wx + 26, 132, wx + 26 + toward * 34, 120], K.mid, 3);
+      meshWheel(c, wx, 110, 52, 58);
+      blk(c, wx - 6, 100, 64, 14, 7, K.ivory, 2.5);
+      c.fillStyle = "rgba(150,140,120,0.45)"; c.beginPath(); c.ellipse(wx + 26, 108, 20, 3, 0, 0, Math.PI * 2); c.fill();
+    }
+    // Headlights at the front with a soft beam.
+    const beam = c.createLinearGradient(284, 0, 330, 0); beam.addColorStop(0, "rgba(255,244,210,0.45)"); beam.addColorStop(1, "rgba(255,244,210,0)");
+    c.fillStyle = beam; c.beginPath(); c.moveTo(284, 76); c.lineTo(330, 60); c.lineTo(330, 112); c.lineTo(284, 98); c.closePath(); c.fill();
+    led(c, 282, 80, "#FFF4D2", 4); led(c, 282, 96, "#FFF4D2", 4);
+  },
+  drillrig(c, p, t) {
+    shadow(c, p, 0.45);
+    blk(c, 10, 150, 140, 40, 8, vgrad(c, 150, 40, K.slate, K.navy2)); hazard(c, 16, 178, 128, 8);
+    line(c, [80, 14, 22, 156], K.mid, 5); line(c, [80, 14, 138, 156], K.mid, 5); line(c, [80, 14, 80, 150], K.steel, 4);
+    line(c, [40, 110, 120, 110], K.steel, 3);
+    blk(c, 62, 2, 36, 20, 5, K.ivory); led(c, 92, 12, Math.sin(t * 4) > 0 ? K.orange : "#7A4B1E", 3);
+    line(c, [80, 22, 80, 196], K.light, 7);
+    for (let i = 0; i < 6; i++) { const yy = 30 + ((i * 28 + t * 40) % 160); c.fillStyle = K.steel; c.fillRect(76, yy, 8, 3); }
+    blk(c, 96, 92, 50, 36, 6, K.navy); screen(c, 102, 98, 38, 16, "wave"); led(c, 140, 120, K.green, 2.6);
+    blk(c, 12, 118, 56, 26, 5, K.dark, 2.5);
+    for (let i = 0; i < 3; i++) blk(c, 18 + i * 16, 122, 10, 18, 4, "rgba(150,230,255,0.85)", 1.5);
+  },
+  solarmast(c, p, t) {
+    shadow(c, p, 0.35);
+    line(c, [40, 120, 40, 182], K.steel, 5);
+    blk(c, 24, 172, 32, 16, 4, K.slate);
+    blk(c, 6, 6, 68, 120, 5, vgrad(c, 6, 120, "#335A92", K.navy2), 2.5);
+    c.strokeStyle = "rgba(85,213,233,0.45)"; c.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(6 + i * 17, 8); c.lineTo(6 + i * 17, 124); c.stroke(); }
+    for (let i = 1; i < 8; i++) { c.beginPath(); c.moveTo(8, 6 + i * 15); c.lineTo(72, 6 + i * 15); c.stroke(); }
+    const g = ((t * 30) % 180) - 30;
+    c.save(); rr(c, 8, 8, 64, 116, 4); c.clip(); c.strokeStyle = "rgba(255,255,255,0.35)"; c.lineWidth = 6;
+    c.beginPath(); c.moveTo(0, g); c.lineTo(80, g - 40); c.stroke(); c.restore();
+  },
+  seismo(c, p, t) {
+    shadow(c, p, 0.45);
+    c.fillStyle = K.ivory; c.strokeStyle = K.out; c.lineWidth = 2.5;
+    c.beginPath(); c.ellipse(36, 54, 30, 18, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = K.light; c.beginPath(); c.ellipse(36, 50, 18, 9, 0, 0, Math.PI * 2); c.fill();
+    led(c, 36, 48, K.cyan, 3);
+    c.strokeStyle = K.dark; c.lineWidth = 2; c.beginPath(); c.moveTo(62, 58); c.quadraticCurveTo(76, 70, 88, 56); c.stroke();
+    blk(c, 84, 26, 40, 36, 6, K.navy); screen(c, 88, 30, 32, 16, "wave");
+    line(c, [116, 26, 116, 2], K.mid, 2.5); led(c, 116, 2, Math.sin(t * 3) > 0 ? K.cyan : "#16424A", 3);
+  },
+  boulder(c) {
+    c.fillStyle = "rgba(4,14,23,0.3)"; c.beginPath(); c.ellipse(40, 86, 70, 10, 0, 0, Math.PI * 2); c.fill();
+    const g = c.createLinearGradient(10, 10, 120, 90); g.addColorStop(0, "#5D646E"); g.addColorStop(0.6, "#8A919B"); g.addColorStop(1, "#B5BBC4");
+    c.fillStyle = g; c.strokeStyle = K.out; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(14, 70); c.lineTo(10, 40); c.lineTo(34, 14); c.lineTo(72, 8); c.lineTo(108, 24); c.lineTo(122, 56); c.lineTo(104, 84); c.lineTo(48, 90); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = "rgba(20,24,30,0.35)";
+    for (const [x, y, r] of [[40, 40, 8], [78, 52, 6], [62, 28, 4], [92, 66, 5]] as const) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
+    line(c, [74, 10, 108, 26, 120, 54], "rgba(235,240,245,0.6)", 2.5);
+  },
   // ---------- GRAND HALL: NEXUS pedestal (simple on purpose; the full cube appears on Examine) ----------
   nexus(c, _p, t) {
     const pulse = 0.5 + 0.5 * Math.sin(t * 2);
@@ -464,6 +569,7 @@ const NAT: Record<string, [number, number]> = {
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
   extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [140, 150],
+  ltv: [300, 190], drillrig: [160, 200], solarmast: [80, 190], seismo: [130, 80], boulder: [130, 96],
 };
 export const LUNAR_KINDS = new Set(Object.keys(ART));
 export function drawLunarProp(c: Ctx, p: LP, time: number): boolean {

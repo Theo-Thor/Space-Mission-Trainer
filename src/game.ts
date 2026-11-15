@@ -115,6 +115,9 @@ export class Game {
   private evaSnapshot: HTMLCanvasElement | null = null;
   private evaRadio = 0;
   roverRescued = false;
+  /** Footprints on the lunar surface (top-down). */
+  private readonly prints: { x: number; y: number; a: number }[] = [];
+  private lastPrint = { x: 0, y: 0 };
   /** The colony's NEXUS cube. It keeps its state between visits. */
   readonly nexus = new NexusRun();
   nexusOpen = false;
@@ -327,7 +330,10 @@ export class Game {
     this.updateRadios(dt);
     this.syncDialogue();
     this.updateIntro(dt);
-    if (this.scene === "lunar") this.updateLunarSuit(dt);
+    if (this.scene === "lunar") {
+      this.updateLunarSuit(dt);
+      this.leavePrints();
+    }
     else this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
     this.player.radioLight = this.mission.radioAcquired;
     this.player.label = "";
@@ -377,6 +383,7 @@ export class Game {
       viewH: this.viewH,
       scene: this.scene,
       stationsLive: this.stationsLive,
+      footprints: this.scene === "lunar" ? this.prints : undefined,
     });
   }
 
@@ -953,6 +960,18 @@ export class Game {
       this.ui.setObjective(`NEXUS: turn ${run.turns + 1} of ${TOTAL_TURNS}`);
       this.ui.pushToast("COLONY UPDATE", `${low} is the lowest need right now.`);
     }
+  }
+
+  private leavePrints(): void {
+    const p = this.player;
+    if (!onSurface(p.y) || !p.walking) return;
+    const d = Math.hypot(p.x - this.lastPrint.x, p.y - this.lastPrint.y);
+    if (d < 26) return;
+    const a = Math.atan2(p.y - this.lastPrint.y, p.x - this.lastPrint.x) + Math.PI / 2;
+    const side = this.prints.length % 2 ? 5 : -5;
+    this.prints.push({ x: p.x + Math.cos(a) * side, y: p.y + Math.sin(a) * side, a });
+    if (this.prints.length > 600) this.prints.shift();
+    this.lastPrint = { x: p.x, y: p.y };
   }
 
   /** Leave through the Rover Exit: the view tilts from top-down to the side-view Moon level. */

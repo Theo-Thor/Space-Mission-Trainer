@@ -213,7 +213,7 @@ export class EvaMission {
         this.repair = { step: 0, progress: 0, taps: 0 };
         b.vx = 0;
         // Stand beside the rover, not inside it.
-        b.x = ROVER_X - 118;
+        b.x = ROVER_X - 160;
         b.y = groundAt(TERRAIN, b.x);
         b.facing = "right";
       } else {

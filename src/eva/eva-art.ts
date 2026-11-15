@@ -520,97 +520,197 @@ function drawIce(ctx: Ctx, x: number, y: number, t: number): void {
   ctx.fillRect(x - 3, y - 16, 3, 22);
 }
 
+let roverFacing = 1;
+
+/** A detailed side view of the scout rover (LTV-style, our own design). Front faces +x. */
 function drawRover(ctx: Ctx, m: EvaMission): void {
   const driving = m.phase === "drive" || m.phase === "end" || m.phase === "exit";
   const x = driving ? m.rover.x : ROVER_X;
   const y = driving ? m.rover.y : groundAt(TERRAIN, ROVER_X);
   const step = m.phase === "repair" ? m.repair.step : driving ? 3 : 0;
   const fixed = driving || step >= 3;
+  const wheelOn = driving || step >= 2;
+  if (driving && Math.abs(m.rover.vx) > 5) roverFacing = m.rover.vx < 0 ? -1 : 1;
+  const face = driving ? roverFacing : 1;
+  const t = m.time;
   ctx.fillStyle = "rgba(10, 12, 18, 0.32)";
   ctx.beginPath();
-  ctx.ellipse(x - 40, groundAt(TERRAIN, x) + 2, 110, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(x - 50, groundAt(TERRAIN, x) + 2, 130, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(driving ? m.rover.angle : step < 2 ? 0.07 : 0);
-  const spin = driving ? m.rover.x / 22 : 0;
-  // Wheels: the front one is missing until the repair.
-  for (const wx of [-52, 52]) {
-    if (wx > 0 && step < 2 && !driving) {
-      ctx.strokeStyle = "#596577";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(wx - 10, -26);
-      ctx.lineTo(wx, -8);
-      ctx.stroke();
-      continue;
-    }
-    ctx.fillStyle = "#232A34";
+  ctx.rotate(driving ? m.rover.angle : step < 2 ? 0.08 : 0);
+  ctx.scale(face, 1);
+  const spin = driving ? (m.rover.x / 24) * -face : 0;
+  const WB = 66;
+  const R = 25;
+
+  const wheel = (wx: number, far: boolean): void => {
+    const r = far ? R - 3 : R;
+    const cy = -R + (far ? -3 : 0);
+    ctx.fillStyle = far ? "#10161E" : "#1B232D";
     ctx.beginPath();
-    ctx.arc(wx, -22, 22, 0, Math.PI * 2);
+    ctx.arc(wx, cy, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "#AEB8C6";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.strokeStyle = C.amber;
-    for (let i = 0; i < 4; i += 1) {
-      const a = spin + (i * Math.PI) / 2;
+    // Mesh tyre: chevron cleats around the rim.
+    ctx.strokeStyle = far ? "rgba(120,135,150,0.35)" : "#AEB8C6";
+    ctx.lineWidth = far ? 1.5 : 2.2;
+    for (let i = 0; i < 16; i += 1) {
+      const a = spin + (i / 16) * Math.PI * 2;
+      const c1 = Math.cos(a), s1 = Math.sin(a);
       ctx.beginPath();
-      ctx.moveTo(wx, -22);
-      ctx.lineTo(wx + Math.cos(a) * 15, -22 + Math.sin(a) * 15);
+      ctx.moveTo(wx + c1 * (r - 7), cy + s1 * (r - 7));
+      ctx.lineTo(wx + Math.cos(a + 0.12) * r, cy + Math.sin(a + 0.12) * r);
       ctx.stroke();
     }
-  }
-  // Chassis.
-  ctx.fillStyle = "#D9DFE6";
+    ctx.strokeStyle = far ? "#3A4554" : "#5E6C7E";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(wx, cy, r - 7, 0, Math.PI * 2);
+    ctx.stroke();
+    if (far) return;
+    ctx.fillStyle = "#3A4658";
+    ctx.beginPath();
+    ctx.arc(wx, cy, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = C.amber;
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 5; i += 1) {
+      const a = spin + (i / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(wx, cy);
+      ctx.lineTo(wx + Math.cos(a) * 10, cy + Math.sin(a) * 10);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#D9DFE6";
+    ctx.beginPath();
+    ctx.arc(wx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  // Far-side wheels behind everything.
+  wheel(-WB + 8, true);
+  if (wheelOn) wheel(WB + 8, true);
+
+  // Truss frame under the deck.
+  ctx.strokeStyle = "#8A97A8";
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.roundRect(-84, -62, 168, 30, 8);
-  ctx.fill();
-  ctx.fillStyle = C.amber;
-  ctx.fillRect(-84, -40, 168, 5);
-  ctx.fillStyle = "#3A4658";
-  ctx.fillRect(-30, -86, 40, 24);
+  ctx.moveTo(-90, -48); ctx.lineTo(88, -48);
+  ctx.moveTo(-86, -70); ctx.lineTo(84, -70);
+  for (let i = -86; i < 84; i += 21) { ctx.moveTo(i, -48); ctx.lineTo(i + 10, -70); ctx.lineTo(i + 21, -48); }
+  ctx.stroke();
+  // Battery and tool box with stripe and label.
+  ctx.fillStyle = "#33405A";
+  ctx.beginPath(); ctx.roundRect(-46, -66, 86, 22, 4); ctx.fill();
+  ctx.fillStyle = C.amber; ctx.fillRect(-46, -50, 86, 3);
+  ctx.fillStyle = C.cyan; ctx.font = `700 8px ${FONT}`; ctx.textAlign = "left";
+  ctx.save(); ctx.scale(face, 1); ctx.fillText("LTV-2", face > 0 ? -40 : 4, -55); ctx.restore();
+  for (let i = 0; i < 4; i += 1) { ctx.fillStyle = "#1A2230"; ctx.fillRect(14 + i * 6, -63, 3, 9); }
+  // Deck plate.
+  ctx.fillStyle = "#E3E8EE";
+  ctx.beginPath(); ctx.roundRect(-94, -78, 186, 9, 4); ctx.fill();
+  ctx.fillStyle = "#B9C2CD"; ctx.fillRect(-94, -71, 186, 2);
+
+  // Rear: tilted solar panel on struts (dusty until brushed).
+  ctx.strokeStyle = "#8A97A8"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-80, -78); ctx.lineTo(-74, -98); ctx.moveTo(-44, -78); ctx.lineTo(-40, -110); ctx.stroke();
+  ctx.save();
+  ctx.translate(-60, -104);
+  ctx.rotate(-0.22);
+  ctx.fillStyle = "#1E3A66"; ctx.fillRect(-36, -6, 72, 11);
+  ctx.strokeStyle = "rgba(85,213,233,0.7)"; ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i += 1) { ctx.beginPath(); ctx.moveTo(-36 + i * 12, -6); ctx.lineTo(-36 + i * 12, 5); ctx.stroke(); }
+  ctx.strokeStyle = "#C9D3DE"; ctx.lineWidth = 1.5; ctx.strokeRect(-36, -6, 72, 11);
+  const dust = step === 0 ? 1 - (m.phase === "repair" ? m.repair.progress : 0) : 0;
+  if (dust > 0) { ctx.fillStyle = `rgba(150, 140, 120, ${0.88 * dust})`; ctx.fillRect(-37, -8, 74, 14); }
+  ctx.restore();
+
+  // Seats (rear passenger, front driver).
+  for (const sx of [-14, 22]) {
+    ctx.fillStyle = "#2D4062";
+    ctx.beginPath(); ctx.roundRect(sx - 12, -92, 28, 14, 4); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(sx - 14, -122, 9, 34, 4); ctx.fill();
+    ctx.fillStyle = C.amber; ctx.fillRect(sx - 13, -118, 7, 3);
+  }
+  // Driver in a spacesuit when driving.
   if (driving) {
     ctx.fillStyle = "#F4F7FA";
-    ctx.beginPath();
-    ctx.arc(-10, -96, 13, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.roundRect(16, -118, 22, 28, 6); ctx.fill();
+    ctx.fillStyle = "#E3E8EE";
+    ctx.beginPath(); ctx.roundRect(30, -98, 22, 8, 4); ctx.fill();
+    ctx.fillStyle = "#F4F7FA";
+    ctx.beginPath(); ctx.arc(28, -128, 12, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#E3A94A";
-    ctx.beginPath();
-    ctx.arc(-6, -96, 8, -0.9, 0.9);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(33, -128, 7, 8, 0, -1.3, 1.3); ctx.fill();
+    ctx.fillStyle = C.amber; ctx.fillRect(18, -106, 18, 3);
   }
-  // Solar panel: dusty until brushed.
-  ctx.fillStyle = "#1E3A66";
-  ctx.fillRect(18, -82, 70, 10);
-  ctx.strokeStyle = "#55D5E9";
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 5; i += 1) {
-    ctx.beginPath();
-    ctx.moveTo(18 + i * 14, -82);
-    ctx.lineTo(18 + i * 14, -72);
-    ctx.stroke();
-  }
-  const dust = step === 0 ? 1 - (m.phase === "repair" ? m.repair.progress : 0) : 0;
-  if (dust > 0) {
-    ctx.fillStyle = `rgba(150, 140, 120, ${0.85 * dust})`;
-    ctx.fillRect(18, -84, 70, 13);
-  }
-  // Antenna (after the last step).
+  // Console and joystick.
+  ctx.strokeStyle = "#8A97A8"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(56, -78); ctx.lineTo(62, -104); ctx.stroke();
+  ctx.fillStyle = "#101826"; ctx.beginPath(); ctx.roundRect(52, -118, 26, 16, 3); ctx.fill();
+  ctx.strokeStyle = C.cyan; ctx.lineWidth = 1.5;
+  ctx.beginPath(); for (let i = 0; i <= 20; i += 2) ctx.lineTo(55 + i, -110 + Math.sin(i * 0.6 + t * 3) * 3); ctx.stroke();
+  ctx.strokeStyle = "#5E6C7E"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(48, -86); ctx.lineTo(52, -96); ctx.stroke();
+  ctx.fillStyle = "#E0624F"; ctx.beginPath(); ctx.arc(52, -97, 3, 0, Math.PI * 2); ctx.fill();
+
+  // Rear mast: camera head, high-gain dish and hazard light (dish only after the repair).
+  ctx.strokeStyle = "#C9D3DE"; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(-84, -78); ctx.lineTo(-84, -150); ctx.stroke();
+  ctx.fillStyle = "#E3E8EE"; ctx.beginPath(); ctx.roundRect(-96, -162, 26, 14, 3); ctx.fill();
+  ctx.fillStyle = "#101826"; ctx.beginPath(); ctx.arc(-73, -155, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = C.cyan; ctx.beginPath(); ctx.arc(-73, -155, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = Math.sin(t * 5) > 0 ? C.amber : "#7A4B1E";
+  ctx.beginPath(); ctx.arc(-84, -168, 4, 0, Math.PI * 2); ctx.fill();
   if (fixed) {
-    ctx.strokeStyle = "#C9D3DE";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#AEB8C6"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-84, -140); ctx.lineTo(-104, -150); ctx.stroke();
+    ctx.save(); ctx.translate(-112, -156); ctx.rotate(-0.6);
+    ctx.fillStyle = "#F4F7FA"; ctx.beginPath(); ctx.ellipse(0, 0, 16, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#8A97A8"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = "#5E6C7E"; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -12); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = Math.sin(t * 6) > 0 ? C.cyan : "#16424A";
+    ctx.beginPath(); ctx.arc(-112, -170, 3.5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.strokeStyle = "#E0624F"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-84, -140); ctx.quadraticCurveTo(-98, -128, -94, -112); ctx.stroke();
+  }
+
+  // Suspension arms and springs to the near wheels.
+  for (const wx of [-WB, WB]) {
+    if (wx > 0 && !wheelOn) continue;
+    const toward = wx > 0 ? -1 : 1;
+    ctx.strokeStyle = "#8A97A8"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(wx, -R); ctx.lineTo(wx + toward * 30, -48); ctx.moveTo(wx, -R); ctx.lineTo(wx + toward * 26, -66); ctx.stroke();
+    ctx.strokeStyle = C.amber; ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(-70, -62);
-    ctx.lineTo(-70, -118);
+    for (let i = 0; i <= 6; i += 1) ctx.lineTo(wx + toward * (8 + i * 2.6) + (i % 2 ? 3 : -3), -R - 6 - i * 5.5);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(-70, -118, 12, Math.PI * 0.15, Math.PI * 0.85);
-    ctx.stroke();
-    ctx.fillStyle = Math.sin(m.time * 6) > 0 ? C.cyan : "#16424A";
-    ctx.beginPath();
-    ctx.arc(-70, -124, 4, 0, Math.PI * 2);
-    ctx.fill();
+  }
+  // Near wheels with fenders. The front one is missing until it is bolted on.
+  wheel(-WB, false);
+  if (wheelOn) wheel(WB, false);
+  else {
+    ctx.fillStyle = "#3A4658"; ctx.beginPath(); ctx.arc(WB, -R, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#8A97A8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(WB, -R); ctx.lineTo(WB - 26, -48); ctx.stroke();
+  }
+  for (const wx of [-WB, WB]) {
+    ctx.strokeStyle = "#E3E8EE"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(wx, -R, R + 6, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    ctx.strokeStyle = "rgba(150,140,120,0.6)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(wx, -R, R + 6, Math.PI * 1.3, Math.PI * 1.6); ctx.stroke();
+  }
+  // Headlight and beam at the front.
+  ctx.fillStyle = "#E3E8EE"; ctx.beginPath(); ctx.roundRect(86, -76, 10, 12, 3); ctx.fill();
+  ctx.fillStyle = "#FFF4D2"; ctx.beginPath(); ctx.arc(93, -70, 3.5, 0, Math.PI * 2); ctx.fill();
+  if (driving || fixed) {
+    const beam = ctx.createLinearGradient(96, 0, 230, 0);
+    beam.addColorStop(0, "rgba(255,244,210,0.35)");
+    beam.addColorStop(1, "rgba(255,244,210,0)");
+    ctx.fillStyle = beam;
+    ctx.beginPath(); ctx.moveTo(96, -74); ctx.lineTo(230, -98); ctx.lineTo(230, -20); ctx.lineTo(96, -66); ctx.closePath(); ctx.fill();
   }
   ctx.restore();
 }
@@ -673,7 +773,7 @@ function drawWorldPrompts(ctx: Ctx, m: EvaMission): void {
   ctx.textAlign = "center";
   if (m.nearRover) {
     const ready = m.parts.size === 3;
-    bubble(ctx, ROVER_X, 400, ready ? "E — Repair the rover" : `Find all 3 parts (${m.parts.size}/3)`, ready ? C.amber : C.white);
+    bubble(ctx, ROVER_X, 352, ready ? "E — Repair the rover" : `Find all 3 parts (${m.parts.size}/3)`, ready ? C.amber : C.white);
   }
   if (m.phase === "repair") {
     const r = m.repair;
@@ -685,19 +785,20 @@ function drawWorldPrompts(ctx: Ctx, m: EvaMission): void {
     ];
     const [title, how] = steps[Math.min(3, r.step)];
     ctx.fillStyle = C.panel;
-    ctx.fillRect(ROVER_X - 190, 300, 380, 88);
+    const top = 262;
+    ctx.fillRect(ROVER_X - 190, top, 380, 88);
     ctx.strokeStyle = C.line;
-    ctx.strokeRect(ROVER_X - 190, 300, 380, 88);
+    ctx.strokeRect(ROVER_X - 190, top, 380, 88);
     ctx.fillStyle = C.white;
     ctx.font = `700 18px ${FONT}`;
-    ctx.fillText(title, ROVER_X, 328);
+    ctx.fillText(title, ROVER_X, top + 28);
     ctx.fillStyle = C.amber;
     ctx.font = `15px ${FONT}`;
-    ctx.fillText(how, ROVER_X, 350);
+    ctx.fillText(how, ROVER_X, top + 50);
     ctx.fillStyle = "#22324A";
-    ctx.fillRect(ROVER_X - 160, 362, 320, 12);
+    ctx.fillRect(ROVER_X - 160, top + 62, 320, 12);
     ctx.fillStyle = r.step >= 3 ? C.cyan : C.amber;
-    ctx.fillRect(ROVER_X - 160, 362, 320 * (r.step >= 3 ? 1 : Math.min(1, r.progress)), 12);
+    ctx.fillRect(ROVER_X - 160, top + 62, 320 * (r.step >= 3 ? 1 : Math.min(1, r.progress)), 12);
   }
 }
 

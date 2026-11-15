@@ -4,7 +4,7 @@ import { WALL, type Door, type Room } from "./world";
 
 // Selene Base, lunar south pole (fictional, year 2048). Layout = approved option D2.
 // World in pixels, origin top-left. Rooms share edges and never overlap.
-export const LUNAR_WORLD = { width: 3450, height: 2100 };
+export const LUNAR_WORLD = { width: 3450, height: 3200 };
 
 const HALL = { floor: "#1D2F45", accent: "#4F7C95" };
 function room(id: string, label: string, x: number, y: number, w: number, h: number, floor: string, accent: string): Room {
@@ -36,10 +36,19 @@ export const lunarRooms: Room[] = [
 ];
 
 /** The open ground outside. Walking here needs the suit. */
-export const SURFACE_AREA = { x: 24, y: 1820, w: 3402, h: 260 };
+export const SURFACE_AREA = { x: 24, y: 1820, w: 3402, h: 1340 };
 export const SURFACE_ROOM: Room = { id: "lu-surface", label: "LUNAR SURFACE", ...SURFACE_AREA, floor: "#5B626D", accent: "#C9D3DE" };
 export const PAD = { x: 1700, y: 1960 };
 export const CRATER = { x: 3050, y: 1960, rx: 240, ry: 55 };
+/** Craters on the open surface south of the base (top-down). The shadowed crater above is one of them. */
+export const SURFACE_CRATERS = [
+  { x: 820, y: 2620, rx: 300, ry: 115, label: "SELENE CRATER" },
+  { x: 2010, y: 2330, rx: 95, ry: 36, label: "" },
+  { x: 2160, y: 2420, rx: 60, ry: 24, label: "" },
+  { x: 1900, y: 2460, rx: 48, ry: 20, label: "" },
+];
+/** A boulder that rolled downhill, leaving a track (as seen in LRO images). */
+export const BOULDER_TRACK = { x0: 1180, y0: 2760, x1: 1560, y1: 2950 };
 
 const byId = (id: string): Room => {
   const found = lunarRooms.find((r) => r.id === `lu-${id}`);
@@ -109,6 +118,7 @@ const NAT: Record<string, [number, number]> = {
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
   extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [140, 150],
+  ltv: [300, 190], drillrig: [160, 200], solarmast: [80, 190], seismo: [130, 80], boulder: [130, 96],
 };
 
 export const lunarProps: LunarProp[] = [];
@@ -124,6 +134,39 @@ function dc(kind: string, x: number, y: number, w: number, h: number, color?: st
 // GRAND HALL: the NEXUS pedestal sits in the middle of the base.
 p("nexus", 1630, 280, 1, { id: "lu-nexus", prompt: "E — Examine NEXUS", radius: 120, ax: 1700, ay: 460 });
 // ROVER EXIT: the way out to the side-view EVA level (nothing is drawn; it is the doorway itself).
+// ---------- OPEN SURFACE south of the base: walk out and examine things ----------
+const ex = (title: string, body: string, detail: string) => ({ title, body, detail });
+p("ltv", 1240, 2160, 1, {
+  id: "lu-ltv", prompt: "E — Examine Moon Rover", radius: 120, ax: 1390, ay: 2380,
+  examine: ex("MOON ROVER", "Apollo 15, 16 and 17 astronauts drove a Lunar Roving Vehicle across the Moon. NASA's Artemis program plans a new Lunar Terrain Vehicle for the south pole.", "Source: NASA — Apollo LRV and Artemis LTV."),
+});
+p("drillrig", 2600, 2010, 1, {
+  id: "lu-drill", prompt: "E — Examine Ice Drill", radius: 110, ax: 2680, ay: 2240,
+  examine: ex("ICE DRILL", "In 1998 NASA's Lunar Prospector found extra hydrogen near the Moon's poles, an early clue that ice may hide in the cold craters.", "Source: NASA — Lunar Prospector."),
+});
+for (const [i, sx] of [2380, 2480, 2580, 2680, 2780].entries()) {
+  p("solarmast", sx, 2660, 1, i === 2 ? {
+    id: "lu-solar", prompt: "E — Examine Solar Mast", radius: 110, ax: sx + 40, ay: 2880,
+    examine: ex("SOLAR MASTS", "At the south pole the Sun stays low on the horizon, so panels stand upright. Some ridges near the pole are lit up to about 90% of the time.", "Source: NASA LRO / LROC."),
+  } : {});
+}
+p("boulder", BOULDER_TRACK.x1 - 40, BOULDER_TRACK.y1 - 60, 1, {
+  id: "lu-boulder", prompt: "E — Examine Boulder Track", radius: 110, ax: BOULDER_TRACK.x1 + 30, ay: BOULDER_TRACK.y1 + 60,
+  examine: ex("BOULDER TRACK", "NASA's Lunar Reconnaissance Orbiter has photographed boulders that rolled down slopes and left long tracks in the dust.", "Source: NASA LRO / LROC."),
+});
+p("seismo", 330, 2930, 1, {
+  id: "lu-seismo", prompt: "E — Examine Seismometer", radius: 100, ax: 395, ay: 3050,
+  examine: ex("MOONQUAKES", "Seismometers left by Apollo astronauts recorded moonquakes for years. The Moon still shakes a little as it cools and shrinks.", "Source: NASA — Apollo Passive Seismic Experiment."),
+});
+// Craters are examined from their rim (nothing drawn here; the floor art draws the craters).
+lunarProps.push(
+  { id: "lu-crater-big", kind: "marker", x: 800, y: 2480, w: 40, h: 10, blocks: false, prompt: "E — Examine Selene Crater", radius: 120, ax: 820, ay: 2480,
+    examine: ex("IMPACT CRATER", "Most Moon craters were made by asteroids and comets crashing in. With no wind or rain, craters can last for billions of years.", "Source: NASA Science — Moon.") },
+  { id: "lu-crater-small", kind: "marker", x: 1990, y: 2270, w: 40, h: 10, blocks: false, prompt: "E — Examine Small Craters", radius: 110, ax: 2010, ay: 2270,
+    examine: ex("TINY IMPACTS", "With no air to slow them down, even tiny space rocks hit the Moon at full speed and dig small craters.", "Source: NASA Science — Moon.") },
+  { id: "lu-crater-dark", kind: "marker", x: 3030, y: 1880, w: 40, h: 10, blocks: false, prompt: "E — Examine Shadowed Crater", radius: 120, ax: 3050, ay: 1880,
+    examine: ex("NEVER SUNLIT", "Some crater floors near the poles never see sunlight. NASA's LRO measured temperatures around −238 °C, colder than Pluto's surface.", "Source: NASA LRO Diviner.") },
+);
 lunarProps.push({ id: "lu-eva", kind: "eva-hatch", x: 740, y: 1780, w: 60, h: 10, blocks: false, prompt: "E — Go outside: Rover Rescue", radius: 100, ax: 770, ay: 1800 });
 // SCIENCE LAB
 dc("grate", 560, 1010, 360, 110); dc("stripe", 478, 1118, 544, 4, "rgba(85,213,233,0.25)");
@@ -220,6 +263,7 @@ export function lunarObstacles(): Rect[] {
   const solid: Rect[] = lunarProps.filter((prop) => prop.blocks).map(({ x, y, w, h }) => ({ x, y, w, h }));
   // The shadowed crater is a hole, not a floor: keep players on its rim.
   solid.push({ x: CRATER.x - CRATER.rx + 30, y: CRATER.y - CRATER.ry + 8, w: CRATER.rx * 2 - 60, h: CRATER.ry * 2 - 16 });
+  for (const c of SURFACE_CRATERS) solid.push({ x: c.x - c.rx * 0.8, y: c.y - c.ry * 0.7, w: c.rx * 1.6, h: c.ry * 1.4 });
   return solid;
 }
 

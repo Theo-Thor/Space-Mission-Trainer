@@ -230,6 +230,23 @@ async function main() {
     await delay(600); await screenshot('eva-12-back');
     console.log('ROVER RESCUE: tilt in, brief, jump, zones, storm shelter, repair, drive home, back in the garage.');
 
+    // OPEN SURFACE: walk out south of the base, examine things; facts land in the Mission data panel.
+    const surfaceShot = async (x, y, id, title, name) => {
+      await evaluate(`window.__SELENE__.teleport(${x},${y})`);
+      await delay(700);
+      await evaluate(`window.__SELENE__.interact(${JSON.stringify(id)})`);
+      await until(`document.querySelector('#datalog-list li.latest strong')?.textContent === ${JSON.stringify(title)}`, `No data for ${id}`);
+      await delay(300); await screenshot(name);
+    };
+    await surfaceShot(1390, 2390, 'lu-ltv', 'MOON ROVER', 'surface-1-rover');
+    await surfaceShot(820, 2470, 'lu-crater-big', 'IMPACT CRATER', 'surface-2-crater');
+    await surfaceShot(2680, 2250, 'lu-drill', 'ICE DRILL', 'surface-3-drill');
+    await surfaceShot(2620, 2890, 'lu-solar', 'SOLAR MASTS', 'surface-4-solar');
+    await surfaceShot(1590, 3020, 'lu-boulder', 'BOULDER TRACK', 'surface-5-boulder');
+    await surfaceShot(395, 3060, 'lu-seismo', 'MOONQUAKES', 'surface-6-seismo');
+    assert(await evaluate('document.querySelector("#inspect").hidden'), 'Facts must not open the closable popup');
+    console.log('SURFACE: rover, craters, drill, solar masts, boulder track, seismometer; facts in the Mission data panel.');
+
     // One broken frame must not crash the renderer or prevent keyboard movement.
     await send('Fetch.enable',{patterns:[{urlPattern:'*uniform-front.png',requestStage:'Request'}]});
     await send('Page.reload',{ignoreCache:true});

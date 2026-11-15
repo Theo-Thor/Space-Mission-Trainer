@@ -16,6 +16,10 @@ export class Surface {
   private readonly radioStatus = must<HTMLElement>("radio-status");
   private readonly prompt = must<HTMLElement>("prompt");
   private readonly hint = must<HTMLElement>("hint");
+  private readonly datalog = must<HTMLElement>("datalog");
+  private readonly datalogList = must<HTMLElement>("datalog-list");
+  private readonly datalogCount = must<HTMLElement>("datalog-count");
+  private readonly data: { kind: "data" | "radio"; title: string; body: string; detail: string }[] = [];
   private readonly banner = must<HTMLElement>("banner");
   private readonly bannerTitle = must<HTMLElement>("banner-title");
   private readonly bannerSub = must<HTMLElement>("banner-sub");
@@ -99,6 +103,7 @@ export class Surface {
 
   setHintVisible(on: boolean): void {
     this.hint.classList.toggle("hide", !on);
+    this.datalog.classList.toggle("above-hint", on);
   }
 
   setBannerVisible(on: boolean): void {
@@ -149,21 +154,54 @@ export class Surface {
     this.radioSender.textContent = sender;
     this.radioText.textContent = text;
     this.radio.hidden = false;
+    this.logData("radio", sender, text, "");
   }
 
   hideRadio(): void {
     this.radio.hidden = true;
   }
 
+  /** Facts and inspections go to the always-visible Mission data panel: nothing to close. */
   showInspect(title: string, body: string, detail: string): void {
     this.inspectTitle.textContent = title;
     this.inspectBody.textContent = body;
     this.inspectDetail.textContent = detail;
-    this.inspect.hidden = false;
+    this.logData("data", title, body, detail);
   }
 
   hideInspect(): void {
     this.inspect.hidden = true;
+  }
+
+  /** Newest entry on top, shown in full; two older ones stay as short lines. */
+  logData(kind: "data" | "radio", title: string, body: string, detail: string): void {
+    const last = this.data[0];
+    if (last && last.title === title && last.body === body) return;
+    this.data.unshift({ kind, title, body, detail });
+    if (this.data.length > 30) this.data.pop();
+    const facts = this.data.filter((d) => d.kind === "data").length;
+    this.datalogCount.textContent = facts ? `· ${facts} fact${facts === 1 ? "" : "s"}` : "";
+    this.datalogList.replaceChildren(
+      ...this.data.slice(0, 3).map((d, i) => {
+        const li = document.createElement("li");
+        li.className = `${d.kind}${i === 0 ? " latest" : ""}`;
+        const t = document.createElement("strong");
+        t.textContent = d.kind === "radio" ? `📡 ${d.title}` : d.title;
+        const b = document.createElement("span");
+        b.textContent = d.body;
+        li.append(t, b);
+        if (i === 0 && d.detail) {
+          const s = document.createElement("em");
+          s.textContent = d.detail;
+          li.append(s);
+        }
+        return li;
+      }),
+    );
+    this.datalog.hidden = false;
+    this.datalog.classList.remove("fresh");
+    void this.datalog.offsetWidth;
+    this.datalog.classList.add("fresh");
   }
 
   showSuit(step: number): void {

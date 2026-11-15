@@ -7,7 +7,7 @@ import { drawCrewArt } from "./crew-art";
 import { drawDecal, drawLunarProp } from "./lunar-art";
 import type { Dir, Look } from "../types";
 import { doors, guides, props, rooms, type Door, type PropDef, type Room } from "../content/world";
-import { CRATER, lunarDecals, lunarDoors, lunarProps, lunarRooms, PAD, SURFACE_AREA, type LunarProp } from "../content/lunar";
+import { BOULDER_TRACK, CRATER, lunarDecals, lunarDoors, lunarProps, lunarRooms, PAD, SURFACE_AREA, SURFACE_CRATERS, type LunarProp } from "../content/lunar";
 
 export interface PaintActor {
   id: string;
@@ -29,6 +29,7 @@ export interface PaintActor {
 }
 
 export interface Paint {
+  footprints?: { x: number; y: number; a: number }[];
   time: number;
   cameraX: number;
   cameraY: number;
@@ -179,6 +180,14 @@ function drawLunarFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
 
   drawSpace(ctx, paint);
   if (visible(SURFACE_AREA.x, SURFACE_AREA.y, SURFACE_AREA.w, SURFACE_AREA.h)) drawRegolith(ctx);
+  // Footprints stay: no wind, no rain.
+  ctx.fillStyle = "rgba(28, 32, 40, 0.5)";
+  for (const f of paint.footprints ?? []) {
+    if (!visible(f.x - 6, f.y - 6, 12, 12)) continue;
+    ctx.beginPath();
+    ctx.ellipse(f.x, f.y, 4, 6, f.a, 0, Math.PI * 2);
+    ctx.fill();
+  }
   for (const room of lunarRooms) {
     if (visible(room.x, room.y, room.w, room.h)) drawRoom(ctx, room, paint, lunarProps);
   }
@@ -244,15 +253,25 @@ function drawRegolith(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = ground;
   ctx.fillRect(x, y, w, h);
   ctx.fillStyle = "rgba(34,38,46,0.55)";
-  for (let i = 0; i < 70; i += 1) {
+  for (let i = 0; i < 260; i += 1) {
     const cx = x + ((i * 389) % w);
-    const cy = y + 30 + ((i * 131) % (h - 60));
+    const cy = y + 30 + ((i * 131 + Math.floor(i / 7) * 53) % (h - 60));
     ctx.beginPath();
     ctx.ellipse(cx, cy, 8 + (i % 5) * 6, 3 + (i % 3) * 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.fillStyle = "rgba(170,176,186,0.25)";
-  for (let i = 0; i < 160; i += 1) ctx.fillRect(x + ((i * 733) % w), y + ((i * 97) % h), 3, 2);
+  for (let i = 0; i < 700; i += 1) ctx.fillRect(x + ((i * 733) % w), y + ((i * 97 + Math.floor(i / 11) * 37) % h), 3, 2);
+  for (const c of SURFACE_CRATERS) drawSurfaceCrater(ctx, c.x, c.y, c.rx, c.ry, c.label);
+  // Boulder track: a dotted trail where a boulder rolled downhill.
+  ctx.strokeStyle = "rgba(28, 32, 40, 0.55)";
+  ctx.lineWidth = 5;
+  ctx.setLineDash([6, 9]);
+  ctx.beginPath();
+  ctx.moveTo(BOULDER_TRACK.x0, BOULDER_TRACK.y0);
+  ctx.quadraticCurveTo((BOULDER_TRACK.x0 + BOULDER_TRACK.x1) / 2 + 40, BOULDER_TRACK.y0 + 40, BOULDER_TRACK.x1 - 20, BOULDER_TRACK.y1 - 20);
+  ctx.stroke();
+  ctx.setLineDash([]);
   ctx.strokeStyle = "rgba(200,210,222,0.35)";
   ctx.setLineDash([16, 12]);
   ctx.lineWidth = 3;
@@ -304,6 +323,44 @@ function drawRegolith(ctx: CanvasRenderingContext2D): void {
   ctx.font = "700 20px Segoe UI, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("LUNAR SURFACE — SUIT REQUIRED (EVA)", x + 24, y + h - 20);
+}
+
+/** A crater seen from above: dark bowl, sunlit far rim, raised lip and a few ejecta rays. */
+function drawSurfaceCrater(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, label: string): void {
+  ctx.fillStyle = "rgba(150, 156, 166, 0.25)";
+  for (let i = 0; i < 10; i += 1) {
+    const a = (i / 10) * Math.PI * 2 + 0.3;
+    ctx.beginPath();
+    ctx.ellipse(x + Math.cos(a) * rx * 1.35, y + Math.sin(a) * ry * 1.35, rx * 0.22, ry * 0.12, a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#6E757F";
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx * 1.12, ry * 1.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const bowl = ctx.createLinearGradient(x - rx, y - ry, x + rx, y + ry);
+  bowl.addColorStop(0, "#1B2029");
+  bowl.addColorStop(0.6, "#353B45");
+  bowl.addColorStop(1, "#5A616C");
+  ctx.fillStyle = bowl;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(225, 230, 236, 0.55)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, -0.2, Math.PI * 0.75);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(10, 13, 18, 0.45)";
+  ctx.beginPath();
+  ctx.ellipse(x - rx * 0.12, y - ry * 0.1, rx * 0.8, ry * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (label) {
+    ctx.fillStyle = "#AAB3BF";
+    ctx.font = "700 18px Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x, y + ry + 34);
+  }
 }
 
 function drawShipFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
