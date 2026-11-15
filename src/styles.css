@@ -417,3 +417,23 @@ label { display: block; text-align: left; margin-bottom: 0.4rem; color: #b7c5d4;
 #finale .finale-note { margin: 0 0 1rem; font-size: 0.85rem; color: #8fa9d6; line-height: 1.45; }
 #finale .finale-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
 #finale .finale-actions button { background: rgba(16, 33, 72, 0.9); color: #e8eff5; border: 1px solid rgba(85, 213, 233, 0.55); border-radius: 999px; padding: 0.55rem 1.1rem; }
+
+/* ---------- NEXUS: roomier view, keys, ORBI ---------- */
+#nexus .nexus-card { width: min(19rem, calc(100vw - 2rem)); }
+#nexus .nexus-side { width: 13rem; }
+#nexus .nexus-card, #nexus .nexus-side { font-size: 0.9rem; }
+#nexus-keys { margin: 0 0 0.7rem; padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; color: #7bd88f; background: rgba(123, 216, 143, 0.12); border: 1px solid rgba(123, 216, 143, 0.4); }
+#nexus-keys.empty { color: #f0a84b; background: rgba(240, 168, 75, 0.12); border-color: rgba(240, 168, 75, 0.45); }
+#nexus.compact .nexus-side, #nexus.compact #nexus-text, #nexus.compact #nexus-sky, #nexus.compact #nexus-choices, #nexus.compact #nexus-tip { display: none; }
+#nexus-info { position: absolute; right: 12.5rem; bottom: 1rem; background: rgba(16, 33, 72, 0.9); color: #e8eff5; border: 1px solid rgba(85, 213, 233, 0.4); border-radius: 999px; padding: 0.55rem 1rem; }
+#nexus-orbi { position: absolute; left: 1rem; bottom: 1rem; display: flex; align-items: flex-end; gap: 0.5rem; max-width: min(26rem, calc(100vw - 2rem)); pointer-events: none; }
+#nexus-orbi svg { flex: none; animation: orbi-bob 2.6s ease-in-out infinite; filter: drop-shadow(0 0 10px rgba(85, 213, 233, 0.5)); }
+#nexus-orbi .eye { animation: orbi-blink 3.2s infinite; transform-origin: center; transform-box: fill-box; }
+#nexus-orbi p { margin: 0 0 1.4rem; padding: 0.6rem 0.8rem; background: rgba(244, 247, 250, 0.96); color: #16202e; border-radius: 14px 14px 14px 4px; font-size: 0.86rem; line-height: 1.4; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+#nexus-orbi p strong { display: block; font-size: 0.7rem; letter-spacing: 0.12em; color: #2d4062; }
+#nexus-orbi.talk p { animation: orbi-talk 0.35s ease; }
+@keyframes orbi-bob { 50% { transform: translateY(-6px); } }
+@keyframes orbi-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.15); } }
+@keyframes orbi-talk { from { transform: scale(0.92); opacity: 0.4; } to { transform: none; opacity: 1; } }
+#nexus .nexus-help { bottom: auto; top: 1rem; }
+@media (max-width: 760px) { #nexus-info { right: 1rem; bottom: 4rem; } #nexus-orbi { bottom: 7rem; } }

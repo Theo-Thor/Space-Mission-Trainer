@@ -32,6 +32,7 @@ export interface Paint {
   footprints?: { x: number; y: number; a: number }[];
   /** NEXUS need level per lunar room id (0–9), with its name and colour. */
   roomNeeds?: Record<string, { name: string; color: string; level: number }>;
+  nexusKeys?: { x: number; y: number; color: string; taken: boolean }[];
   time: number;
   cameraX: number;
   cameraY: number;
@@ -218,6 +219,10 @@ function drawLunarFrame(ctx: CanvasRenderingContext2D, paint: Paint): void {
     if (!visible(actor.x - 40, actor.y - 90, 80, 110)) continue;
     layers.push({ z: actor.y, draw: () => drawActor(ctx, actor, paint.time) });
   }
+  for (const key of paint.nexusKeys ?? []) {
+    if (key.taken || !visible(key.x - 40, key.y - 60, 80, 80)) continue;
+    layers.push({ z: key.y, draw: () => drawNexusKey(ctx, key.x, key.y, key.color, paint.time) });
+  }
   layers.sort((a, b) => a.z - b.z);
   for (const layer of layers) layer.draw();
   // The base reflects NEXUS: a room dims when its need runs low, and shows its meter.
@@ -336,6 +341,40 @@ function drawRegolith(ctx: CanvasRenderingContext2D): void {
   ctx.font = "700 20px Segoe UI, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("LUNAR SURFACE — SUIT REQUIRED (EVA)", x + 24, y + h - 20);
+}
+
+/** A NEXUS key: a floating crystal shard in a need colour, with a light beam so it is easy to spot. */
+function drawNexusKey(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, time: number): void {
+  const bob = Math.sin(time * 2.6 + x) * 4;
+  const beam = ctx.createLinearGradient(0, y - 120, 0, y);
+  beam.addColorStop(0, "rgba(255,255,255,0)");
+  beam.addColorStop(1, "rgba(255,255,255,0.22)");
+  ctx.fillStyle = beam;
+  ctx.fillRect(x - 6, y - 120, 12, 120);
+  ctx.fillStyle = "rgba(4,10,18,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(x, y + 2, 14, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(x, y - 26 + bob);
+  ctx.rotate(Math.sin(time * 1.5 + x) * 0.25);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, -18); ctx.lineTo(10, -2); ctx.lineTo(0, 16); ctx.lineTo(-10, -2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.beginPath();
+  ctx.moveTo(0, -14); ctx.lineTo(4, -3); ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawNeedChip(ctx: CanvasRenderingContext2D, x: number, y: number, need: { name: string; color: string; level: number }, time: number): void {

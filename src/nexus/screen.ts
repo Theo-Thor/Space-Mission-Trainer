@@ -20,6 +20,9 @@ function scoreAfter(run: NexusRun, move: Move): number {
 
 export class NexusScreen {
   onClose: () => void = () => undefined;
+  private keys = 0;
+  private readonly keysLine: HTMLElement;
+  private readonly orbi: HTMLElement;
   isOpen = false;
 
   private view: NexusView | null = null;
@@ -44,6 +47,12 @@ export class NexusScreen {
     this.tip = must(section, "#nexus-tip");
     this.ending = must(section, "#nexus-end");
     this.sky = must(section, "#nexus-sky");
+    this.keysLine = must(section, "#nexus-keys");
+    this.orbi = must(section, "#nexus-orbi-say");
+    must<HTMLButtonElement>(section, "#nexus-info").addEventListener("click", (e) => {
+      const compact = section.classList.toggle("compact");
+      (e.currentTarget as HTMLButtonElement).textContent = compact ? "Show info" : "Hide info";
+    });
     this.chart = must<HTMLCanvasElement>(section, "#nexus-chart");
     this.meters.innerHTML = FACE_ORDER.map(
       (f) =>
@@ -63,13 +72,22 @@ export class NexusScreen {
     );
   }
 
-  open(run: NexusRun): void {
+  open(run: NexusRun, keys = 0): void {
     this.run = run;
+    this.keys = keys;
     this.section.hidden = false;
     this.isOpen = true;
     if (!this.view) {
       this.view = new NexusView(this.stage, run);
-      this.view.onChange = () => this.render();
+      this.view.onChange = () => {
+        this.render();
+        if (this.run.done) this.say("2048! Every need is full. You did it!");
+        else if (this.ready() > 0) this.say(`Great turn! You still have ${this.ready()} turn${this.ready() === 1 ? "" : "s"} ready.`);
+        else this.say(`Great turn! That used your key. Find another NEXUS key outside (${this.keys}/11 found).`);
+      };
+      this.view.canTurn = () => this.ready() > 0;
+      this.view.onBlocked = () => this.say(`No key, no turn! Find NEXUS keys on the Moon surface. You have ${this.keys} of 11.`);
+      this.view.onTap = () => this.say("Don't just click! Grab the glowing layer and drag it the way its arrows flow.");
       this.view.onWrong = () => {
         this.tip.textContent = "Almost! Follow the glowing arrows.";
         this.tip.classList.add("nexus-tip-flash");
@@ -80,6 +98,41 @@ export class NexusScreen {
     }
     this.view.start();
     this.render();
+    this.say(
+      run.done ? "2048! Every need is full."
+      : this.ready() > 0 ? `Hi, I'm ORBI! You have ${this.ready()} turn${this.ready() === 1 ? "" : "s"} ready. Tap a button to see what a turn does, then drag the glowing layer.`
+      : `Hi, I'm ORBI! NEXUS runs our base. Each turn needs a NEXUS key, and there are 11 on the Moon surface. You have ${this.keys}.`,
+    );
+  }
+
+  private ready(): number {
+    return Math.max(0, this.keys - this.run.turns);
+  }
+
+  private say(text: string): void {
+    this.orbi.textContent = text;
+    this.orbi.parentElement?.classList.remove("talk");
+    void this.orbi.offsetWidth;
+    this.orbi.parentElement?.classList.add("talk");
+  }
+
+  /** ORBI explains what a turn would do, using the real cube maths. */
+  private explain(move: Move): string {
+    const before = this.run.cube.counts();
+    const copy = new NexusCube();
+    copy.stickers = this.run.cube.stickers.map((s) => ({ pos: [...s.pos], normal: [...s.normal], type: s.type }));
+    copy.apply(move);
+    const after = copy.counts();
+    const up: string[] = [];
+    const down: string[] = [];
+    for (const f of FACE_ORDER) {
+      if (after[f] > before[f]) up.push(`${NEEDS[f].name} ${before[f]}→${after[f]}`);
+      if (after[f] < before[f]) down.push(`${NEEDS[f].name} ${before[f]}→${after[f]}`);
+    }
+    const name = NEEDS[move.face].name;
+    const gain = up.length ? `Stronger: ${up.join(", ")}.` : "Nothing gets stronger right away.";
+    const loss = down.length ? ` Weaker: ${down.join(", ")}.` : " Nothing gets weaker.";
+    return `Turning ${name}: ${gain}${loss} To do it, drag the ${name} layer the way its arrows flow.`;
   }
 
   close(): void {
@@ -140,6 +193,8 @@ export class NexusScreen {
       });
     }
     this.ending.hidden = !run.done;
+    this.keysLine.textContent = `NEXUS keys: ${this.keys} / 11 found · ${this.ready()} turn${this.ready() === 1 ? "" : "s"} ready`;
+    this.keysLine.classList.toggle("empty", this.ready() === 0 && !run.done);
     if (run.done) {
       this.turn.textContent = `${TOTAL_TURNS} of ${TOTAL_TURNS}`;
       this.choices.innerHTML = "";
@@ -160,11 +215,14 @@ export class NexusScreen {
       b.type = "button";
       b.className = "nexus-choice";
       b.style.setProperty("--c", NEEDS[move.face].color);
-      b.innerHTML = `<span class="nexus-swatch" style="--c:${NEEDS[move.face].color}"></span>Turn ${NEEDS[move.face].name}${i === best ? '<em>Helps most right now</em>' : ""}`;
-      b.addEventListener("click", () => this.view?.request(move));
+      b.innerHTML = `<span class="nexus-swatch" style="--c:${NEEDS[move.face].color}"></span>${NEEDS[move.face].name}: what happens?${i === best ? '<em>Helps most right now</em>' : ""}`;
+      b.addEventListener("click", () => {
+        this.say(this.explain(move));
+        this.view?.pulse();
+      });
       this.choices.appendChild(b);
     });
     this.tip.textContent =
-      legal.length === 1 ? "Only one move this time. Drag the glowing layer the way the arrows flow." : "Pick one. Drag a glowing layer the way its arrows flow, or tap a button.";
+      legal.length === 1 ? "Only one move this time. Turn it by hand: drag the glowing layer the way the arrows flow." : "Pick one and turn it by hand: drag a glowing layer the way its arrows flow.";
   }
 }

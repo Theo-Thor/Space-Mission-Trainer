@@ -148,6 +148,7 @@
         <h2 id="nexus-title"></h2>
         <p id="nexus-text"></p>
         <p id="nexus-sky"></p>
+        <p id="nexus-keys"></p>
         <div id="nexus-choices"></div>
         <p id="nexus-tip"></p>
       </div>
@@ -159,6 +160,21 @@
         <p class="nexus-note">Earth (blue) and Sun (amber) above the horizon, from NASA JPL Horizons. The rules of the cube are fictional.</p>
       </div>
       <p class="nexus-help">Drag empty space to look around · Drag a glowing layer to turn it</p>
+      <div id="nexus-orbi">
+        <svg viewBox="0 0 64 84" width="64" height="84" aria-hidden="true">
+          <ellipse cx="32" cy="70" rx="12" ry="9" fill="rgba(85,213,233,0.45)" />
+          <line x1="32" y1="14" x2="32" y2="3" stroke="#9AA7B5" stroke-width="2.5" />
+          <circle cx="32" cy="3" r="3.2" fill="#F0A84B" />
+          <circle cx="32" cy="36" r="24" fill="#F4F7FA" stroke="#16202E" stroke-width="3" />
+          <rect x="15" y="24" width="34" height="20" rx="9" fill="#101826" stroke="#16202E" stroke-width="2.5" />
+          <ellipse class="eye" cx="24" cy="34" rx="3.5" ry="4.5" fill="#55D5E9" />
+          <ellipse class="eye" cx="40" cy="34" rx="3.5" ry="4.5" fill="#55D5E9" />
+          <path d="M27 39 Q32 43 37 39" stroke="#55D5E9" stroke-width="1.6" fill="none" />
+          <rect x="22" y="52" width="20" height="3" fill="#F0A84B" />
+        </svg>
+        <p><strong>ORBI</strong><span id="nexus-orbi-say"></span></p>
+      </div>
+      <button id="nexus-info" type="button">Hide info</button>
       <button id="nexus-leave" type="button">Leave NEXUS · Esc</button>
       <div id="nexus-end" hidden>
         <p class="nexus-label">SELENE BASE · ALL SYSTEMS FULL</p>

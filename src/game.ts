@@ -2,7 +2,7 @@ import { CharacterAnimator } from "./systems/animation";
 import { AutomaticDoor, actorFootprint } from "./systems/doors";
 import { actorDefs, doors, BOARD_TARGET, INTRO_FOCUS, obstacles, PLAYER_SPAWN, propAnchor, props, RILEY_PATH, roomAt, walkable, WORLD, type PropDef } from "./content/world";
 import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, SHIP_LOOK, shipProps, shipRoomAt } from "./content/ship";
-import { LUNAR_RILEY, LUNAR_SPAWN, LUNAR_WORLD, lunarCrew, lunarObstacles, lunarProps, lunarRoomAt, lunarWalkable, NPC_GREETING, onSurface, type LunarProp } from "./content/lunar";
+import { LUNAR_RILEY, LUNAR_SPAWN, LUNAR_WORLD, NEXUS_KEYS, lunarCrew, lunarObstacles, lunarProps, lunarRoomAt, lunarWalkable, NPC_GREETING, onSurface, type LunarProp } from "./content/lunar";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { drawVoyage } from "./render/voyage-art";
 import { nexusPaint } from "./render/lunar-art";
@@ -117,6 +117,11 @@ export class Game {
   private evaRadio = 0;
   roverRescued = false;
   private finaleShown = false;
+  /** NEXUS keys picked up on the surface; each one allows one turn of the cube. */
+  readonly keysTaken = new Set<number>();
+  private inHall = false;
+  private hallVisits = 0;
+  private riseTime = 3.2;
   private bestJump = 0;
   /** Footprints on the lunar surface (top-down). */
   private readonly prints: { x: number; y: number; a: number }[] = [];
@@ -336,6 +341,8 @@ export class Game {
     if (this.scene === "lunar") {
       this.updateLunarSuit(dt);
       this.leavePrints();
+      this.collectKeys();
+      this.updateHall(dt);
     }
     else this.player.suitBlend = this.mission.suitEquipped ? 1 : this.suitBlend;
     this.player.radioLight = this.mission.radioAcquired;
@@ -388,6 +395,7 @@ export class Game {
       stationsLive: this.stationsLive,
       footprints: this.scene === "lunar" ? this.prints : undefined,
       roomNeeds: this.scene === "lunar" ? this.roomNeeds() : undefined,
+      nexusKeys: this.scene === "lunar" ? NEXUS_KEYS.map((k, i) => ({ ...k, taken: this.keysTaken.has(i) })) : undefined,
     });
   }
 
@@ -764,8 +772,8 @@ export class Game {
     this.banner = 3.4;
     this.hint = 8;
     this.intro = 0;
-    this.ui.setObjective("Examine NEXUS in the Grand Hall");
-    this.ui.pushToast("OBJECTIVE UPDATED", "Examine NEXUS in the Grand Hall");
+    this.ui.setObjective("Visit NEXUS in the Grand Hall");
+    this.ui.pushToast("OBJECTIVE UPDATED", "Visit NEXUS in the Grand Hall, then find the 11 NEXUS keys outside");
     this.shipFade = 0.9;
     this.ui.setFade(1);
     this.placeCamera(0);
@@ -776,7 +784,14 @@ export class Game {
       this.startEva();
       return;
     }
+    if (id === "lu-orbi") {
+      this.dialogue.play({ id: "ORBI", lines: this.orbiLines() }, this.mission.playerName, () => undefined);
+      this.syncDialogue();
+      this.sfx.blip();
+      return;
+    }
     if (id === "lu-nexus") {
+      if (nexusPaint.rise < 1) return;
       this.nexusOpen = true;
       this.ui.hideInspect();
       this.sfx.blip();
@@ -946,9 +961,72 @@ export class Game {
       this.ui.pushToast("NEXUS COMPLETE", "2048 · Every need is full.");
     } else if (run.turns > 0) {
       const low = NEEDS[run.lowest()].name;
-      this.ui.setObjective(`NEXUS: turn ${run.turns + 1} of ${TOTAL_TURNS}`);
       this.ui.pushToast("COLONY UPDATE", `${low} is the lowest need right now.`);
     }
+    if (!run.done) this.refreshObjective();
+  }
+
+  get keyCount(): number {
+    return this.keysTaken.size;
+  }
+
+  debugGiveKeys(n: number): void {
+    for (let i = 0; i < Math.min(n, NEXUS_KEYS.length); i += 1) this.keysTaken.add(i);
+  }
+
+  private collectKeys(): void {
+    if (!onSurface(this.player.y)) return;
+    NEXUS_KEYS.forEach((k, i) => {
+      if (this.keysTaken.has(i) || Math.hypot(this.player.x - k.x, this.player.y - k.y) > 46) return;
+      this.keysTaken.add(i);
+      this.sfx.blip();
+      const n = this.keysTaken.size;
+      this.ui.pushToast("NEXUS KEY FOUND", `${n} / ${NEXUS_KEYS.length} · one more turn of the cube`);
+      if (n === NEXUS_KEYS.length) this.ui.pushToast("ALL KEYS FOUND", "Go back to NEXUS in the Grand Hall");
+      this.refreshObjective();
+    });
+  }
+
+  /** The cube rises out of the floor when you walk into the Grand Hall. */
+  private updateHall(dt: number): void {
+    const here = lunarRoomAt(this.player.x, this.player.y).id === "lu-hall";
+    if (here && !this.inHall) {
+      this.hallVisits += 1;
+      this.riseTime = this.hallVisits === 1 ? 3.2 : 1;
+      nexusPaint.rise = 0;
+      if (this.hallVisits === 1) {
+        this.radio.enqueue({ id: "ORBI-HELLO", sender: "ORBI", text: "Beep! Hi, I'm ORBI. Welcome to the NEXUS chamber. Watch: the cube is waking up!" });
+        this.sfx.voyage("liftoff");
+      } else {
+        this.sfx.blip();
+      }
+    }
+    if (!here && this.inHall) nexusPaint.rise = 0;
+    this.inHall = here;
+    if (here) nexusPaint.rise = Math.min(1, nexusPaint.rise + dt / this.riseTime);
+  }
+
+  private refreshObjective(): void {
+    if (this.scene !== "lunar") return;
+    const keys = `${this.keysTaken.size}/${NEXUS_KEYS.length}`;
+    if (this.nexus.done) this.ui.setObjective(this.roverRescued ? "Selene Base is ready" : "Go outside: rescue the scout rover");
+    else if (this.keysTaken.size > this.nexus.turns) this.ui.setObjective(`Turn NEXUS in the Grand Hall · keys ${keys}`);
+    else this.ui.setObjective(`Find NEXUS keys on the surface · ${keys}`);
+  }
+
+  /** ORBI explains the cube in short, kid-sized lines. */
+  private orbiLines(): { speaker: string; text: string }[] {
+    const keys = this.keysTaken.size;
+    const ready = keys - this.nexus.turns;
+    const say = (text: string) => ({ speaker: "ORBI", text });
+    if (this.nexus.done) return [say("2048! Every need is full. You and NEXUS saved Selene Base, {playerName}!")];
+    return [
+      say("Hi {playerName}! I'm ORBI. This big cube is NEXUS. It runs the whole base."),
+      say("Each side has a crystal for one need: Energy, Signal, Water, Air, Shield and Food."),
+      say("When you turn a layer, pieces move to new sides. One need gets stronger, and its neighbours get a little weaker."),
+      say(`Every turn needs a NEXUS key. There are ${NEXUS_KEYS.length} glowing keys out on the Moon surface. You have ${keys}.`),
+      say(ready > 0 ? `You have ${ready} turn${ready === 1 ? "" : "s"} ready! Examine NEXUS and drag the glowing layer the way its arrows flow.` : "Go outside through an EVA hatch and look for the glowing shards. Then come back and turn the cube!"),
+    ];
   }
 
   /** Which base room shows which NEXUS need. */

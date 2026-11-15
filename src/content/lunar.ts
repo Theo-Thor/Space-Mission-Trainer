@@ -47,6 +47,11 @@ export const SURFACE_CRATERS = [
   { x: 2160, y: 2420, rx: 60, ry: 24, label: "" },
   { x: 1900, y: 2460, rx: 48, ry: 20, label: "" },
 ];
+/** NEXUS keys: 11 glowing shards on the open surface. Each one charges one turn of the cube. */
+export const NEXUS_KEYS: { x: number; y: number; color: string }[] = [
+  [300, 1900], [1150, 1880], [2300, 1900], [2960, 2120], [520, 2350], [1000, 2430],
+  [1760, 2600], [2210, 2250], [3200, 2500], [2060, 3060], [900, 3000],
+].map(([x, y], i) => ({ x, y, color: ["#FFB547", "#FF6FA8", "#3FD8FF", "#D6ECFF", "#9B7BFF", "#5BE38C"][i % 6] }));
 /** A boulder that rolled downhill, leaving a track (as seen in LRO images). */
 export const BOULDER_TRACK = { x0: 1180, y0: 2760, x1: 1560, y1: 2950 };
 
@@ -117,7 +122,7 @@ const NAT: Record<string, [number, number]> = {
   reactor: [170, 190], battery: [190, 100], inverter: [110, 130], reel: [66, 66], powerdesk: [160, 70], medbed: [160, 110],
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
-  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [240, 300],
+  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [240, 300], datapillar: [56, 140], orbi: [64, 84],
   ltv: [300, 190], drillrig: [160, 200], solarmast: [80, 190], seismo: [130, 80], boulder: [130, 96],
 };
 
@@ -133,6 +138,18 @@ function dc(kind: string, x: number, y: number, w: number, h: number, color?: st
 
 // GRAND HALL: the NEXUS pedestal sits in the middle of the base.
 p("nexus", 1580, 220, 1, { id: "lu-nexus", prompt: "E — Examine NEXUS", radius: 130, ax: 1700, ay: 560 });
+// The NEXUS chamber: light lines from every door to the cube, need screens, data pillars, consoles, ORBI.
+dc("stripe", 1078, 373, 500, 4, "rgba(85,213,233,0.45)");
+dc("stripe", 1822, 418, 500, 4, "rgba(85,213,233,0.45)");
+dc("stripe", 1698, 528, 4, 164, "rgba(85,213,233,0.45)");
+dc("ring", 1560, 470, 280, 90, "rgba(85,213,233,0.35)");
+p("wallscreen", 1110, 74, 0.75, { text: "ENERGY · SIGNAL" });
+p("wallscreen", 1340, 74, 0.75, { text: "WATER · AIR" });
+p("wallscreen", 1880, 74, 0.75, { text: "SHIELD · FOOD" });
+p("wallscreen", 2110, 74, 0.75, { text: "SKY DATA · NASA" });
+p("datapillar", 1110, 160); p("datapillar", 1110, 500); p("datapillar", 2240, 150); p("datapillar", 2240, 540);
+p("powerdesk", 1190, 610, 0.9); p("dishdesk", 2030, 610, 0.8);
+p("orbi", 1860, 440, 1, { id: "lu-orbi", blocks: false, prompt: "E — Talk to ORBI", radius: 90, ax: 1892, ay: 540 });
 // ROVER EXIT: the way out to the side-view EVA level (nothing is drawn; it is the doorway itself).
 // ---------- OPEN SURFACE south of the base: walk out and examine things ----------
 const ex = (title: string, body: string, detail: string) => ({ title, body, detail });

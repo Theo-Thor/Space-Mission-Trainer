@@ -180,12 +180,30 @@ async function main() {
     // NEXUS: open from the Grand Hall, play 11 turns, leave, and see the base react.
     await evaluate('window.__SELENE__.teleport(2390,1720)');
     await delay(1200); await screenshot('room-medical-dim');
+    // A NEXUS key on the surface.
+    await evaluate('window.__SELENE__.teleport(300,1900)');
+    await until('window.__SELENE__.keys(0) === 1','Key was not picked up',4000);
+    await screenshot('surface-key');
+    // The cube rises out of the floor in the Grand Hall.
     await evaluate('window.__SELENE__.teleport(1700,600)');
-    await delay(1200); await screenshot('nexus-pedestal');
+    await delay(1200); await screenshot('nexus-rising');
+    await delay(2600); await screenshot('nexus-pedestal');
     await evaluate('window.__SELENE__.nexus()');
     await until('!document.querySelector("#nexus").hidden','NEXUS did not open',8000);
-    await screenshot('nexus-open');
-    for (let i = 0; i < 11; i++) {
+    await delay(1500); await screenshot('nexus-open');
+    // One key = one turn; the second turn is refused until another key is found.
+    assert(await evaluate('window.__SELENE__.nexusPlay(0)'), 'First turn with one key');
+    await until('document.querySelector("#nexus-turn").textContent.includes("Turn 2")','First turn did not finish');
+    await delay(700);
+    assert.equal(await evaluate('window.__SELENE__.nexusPlay(0)'), false, 'No key, no turn');
+    await evaluate('document.querySelector(".nexus-choice").click()');
+    assert(await evaluate('document.querySelector("#nexus-orbi-say").textContent.startsWith("Turning")'), 'ORBI explains a turn');
+    await screenshot('nexus-explain');
+    await evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
+    await evaluate('window.__SELENE__.keys(11)');
+    await evaluate('window.__SELENE__.nexus()');
+    await until('!document.querySelector("#nexus").hidden','NEXUS did not reopen',8000);
+    for (let i = 1; i < 11; i++) {
       const before = await evaluate('document.querySelector("#nexus-turn").textContent');
       await until(`window.__SELENE__.nexusPlay(${i % 2}) || window.__SELENE__.nexusPlay(0)`,`NEXUS turn ${i + 1} refused`);
       await until(`document.querySelector("#nexus-turn").textContent !== ${JSON.stringify(before)}`,`NEXUS turn ${i + 1} did not finish`);

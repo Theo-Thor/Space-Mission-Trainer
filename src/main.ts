@@ -70,6 +70,8 @@ screen.video.addEventListener("error", () => {
 
 screen.video.src = "/cinematics/before-the-launch.mp4";
 screen.video.addEventListener("loadeddata", () => {
+  // Never pop the intro over a game that already started (e.g. from the demo menu).
+  if (game.started) return;
   screen.cinematic.hidden = false;
   void screen.video.play().catch(() => {
     screen.cinematic.hidden = true;
@@ -162,6 +164,7 @@ declare global {
       lunar: () => void;
       nexus: () => void;
       nexusPlay: (index?: number) => boolean;
+      keys: (n: number) => number;
       eva: () => void;
       evaState: () => Record<string, unknown> | null;
       evaDo: (command: string, value?: number) => void;
@@ -172,7 +175,7 @@ declare global {
 const nexusSection = document.querySelector<HTMLElement>("#nexus");
 if (!nexusSection) throw new Error("Missing #nexus");
 const nexusScreen = new NexusScreen(nexusSection, game.nexus);
-game.onNexus = () => nexusScreen.open(game.nexus);
+game.onNexus = () => nexusScreen.open(game.nexus, game.keyCount);
 nexusScreen.onClose = () => game.closeNexus();
 window.__SELENE__ = {
   teleport: (x, y) => game.teleport(x, y),
@@ -205,6 +208,10 @@ window.__SELENE__ = {
     tryOpen();
   },
   nexusPlay: (index = 0) => nexusScreen.playSuggested(index),
+  keys: (n) => {
+    game.debugGiveKeys(n);
+    return game.keyCount;
+  },
   eva: () => {
     if (game.snapshot().scene !== "lunar") window.__SELENE__?.lunar();
     game.teleport(770, 1790);

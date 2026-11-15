@@ -60,7 +60,7 @@ function pot(c: Ctx, x: number, y: number, s = 1): void {
 
 type Painter = (c: Ctx, p: LP, t: number) => void;
 /** What the NEXUS pedestal shows in the base. The game updates it after each visit. */
-export const nexusPaint = { color: "#55D5E9", solved: false, label: "NEXUS · 0 / 11" };
+export const nexusPaint = { color: "#55D5E9", solved: false, label: "NEXUS · 0 / 11", rise: 0 };
 
 /** A mesh tyre seen from the side-front: dark ring, diamond mesh, hub. */
 function meshWheel(c: Ctx, x: number, y: number, w: number, h: number, far = false): void {
@@ -74,6 +74,42 @@ function meshWheel(c: Ctx, x: number, y: number, w: number, h: number, far = fal
 }
 
 const ART: Record<string, Painter> = {
+  // ---------- NEXUS chamber ----------
+  datapillar(c, p, t) {
+    shadow(c, p, 0.4);
+    blk(c, 6, 18, 44, 112, 10, vgrad(c, 18, 112, K.slate, K.navy2));
+    blk(c, 2, 120, 52, 16, 5, K.dark, 2.5);
+    c.save(); rr(c, 12, 26, 32, 88, 6); c.clip();
+    c.fillStyle = "#0E3342"; c.fillRect(12, 26, 32, 88);
+    for (let i = 0; i < 9; i++) {
+      const on = (Math.floor(t * 3) + i) % 9 < 6;
+      c.fillStyle = on ? ["#FFB547", "#FF6FA8", "#3FD8FF", "#D6ECFF", "#9B7BFF", "#5BE38C"][i % 6] : "rgba(85,213,233,0.15)";
+      c.fillRect(16, 30 + i * 9.5, 24 * (0.4 + ((i * 37) % 10) / 16), 5);
+    }
+    c.restore();
+    blk(c, 10, 4, 36, 18, 8, K.ivory, 2.5); led(c, 28, 13, Math.sin(t * 4) > 0 ? K.cyan : "#16424A", 3);
+  },
+  orbi(c, _p, t) {
+    // ORBI: our own little helper robot. Round shell, eye-screen, hover jet.
+    const y = Math.sin(t * 2.4) * 4;
+    c.fillStyle = "rgba(4,14,23,0.3)"; c.beginPath(); c.ellipse(32, 80, 18 - y, 5, 0, 0, Math.PI * 2); c.fill();
+    const jet = c.createRadialGradient(32, 64 + y, 0, 32, 64 + y, 16);
+    jet.addColorStop(0, "rgba(85,213,233,0.9)"); jet.addColorStop(1, "rgba(85,213,233,0)");
+    c.fillStyle = jet; c.fillRect(14, 54 + y, 36, 28);
+    c.save(); c.translate(0, y);
+    line(c, [32, 14, 32, 2], K.mid, 2.5); led(c, 32, 2, Math.sin(t * 5) > 0 ? K.orange : "#7A4B1E", 3.2);
+    c.fillStyle = vgrad(c, 12, 50, "#FFFFFF", K.light); c.strokeStyle = K.out; c.lineWidth = 3;
+    c.beginPath(); c.ellipse(32, 36, 24, 24, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    blk(c, 15, 24, 34, 20, 9, K.dark, 2.5);
+    const blink = (t % 3.2) < 0.12;
+    c.fillStyle = K.cyan;
+    if (blink) { c.fillRect(20, 33, 8, 2); c.fillRect(36, 33, 8, 2); }
+    else { c.beginPath(); c.ellipse(24, 34, 3.5, 4.5, 0, 0, Math.PI * 2); c.ellipse(40, 34, 3.5, 4.5, 0, 0, Math.PI * 2); c.fill(); }
+    c.strokeStyle = K.cyan; c.lineWidth = 1.6; c.beginPath(); c.arc(32, 38, 5, 0.2, Math.PI - 0.2); c.stroke();
+    c.fillStyle = K.orange; c.fillRect(22, 52, 20, 3);
+    blk(c, 4, 34, 8, 12, 4, K.light, 2); blk(c, 52, 34, 8, 12, 4, K.light, 2);
+    c.restore();
+  },
   // ---------- OPEN SURFACE ----------
   ltv(c, p, t) {
     shadow(c, p, 0.5);
@@ -170,6 +206,8 @@ const ART: Record<string, Painter> = {
   },
   // ---------- GRAND HALL: NEXUS (a smaller echo of the 3D cube: metal, crystal cores, beams) ----------
   nexus(c, _p, t) {
+    const rise = Math.max(0, Math.min(1, nexusPaint.rise));
+    const up = 1 - Math.pow(1 - rise, 3);
     const NEED = ["#FFB547", "#FF6FA8", "#3FD8FF", "#D6ECFF", "#9B7BFF", "#5BE38C"];
     const pulse = 0.5 + 0.5 * Math.sin(t * 2);
     const cx = 120;
@@ -187,13 +225,32 @@ const ART: Record<string, Painter> = {
       c.save(); c.shadowColor = col; c.shadowBlur = 10; c.fillStyle = col;
       c.beginPath(); c.arc(nx, ny, 4.5, 0, Math.PI * 2); c.fill(); c.restore();
     });
+    if (rise < 1) {
+      // The floor hatch slides open under the cube.
+      const open = Math.min(1, rise * 4);
+      c.fillStyle = "#03060B";
+      c.beginPath(); c.ellipse(cx, base - 4, 70 * open, 20 * open, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = "rgba(85,213,233,0.8)"; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(cx, base - 4, 70 * open, 20 * open, 0, 0, Math.PI * 2); c.stroke();
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2 + t;
+        const r = 60 + ((t * 80 + i * 13) % 50);
+        c.fillStyle = `rgba(170,180,195,${0.5 * (1 - rise)})`;
+        c.fillRect(cx + Math.cos(a) * r, base - 6 + Math.sin(a) * r * 0.3 - ((t * 60 + i * 7) % 30), 3, 3);
+      }
+    }
+    c.save();
+    c.globalAlpha = 0.25 + 0.75 * up;
     // Light column from the platform up to the cube.
     const col = c.createLinearGradient(0, base, 0, 70);
     col.addColorStop(0, "rgba(85,213,233,0.38)"); col.addColorStop(1, "rgba(85,213,233,0)");
     c.fillStyle = col; c.beginPath(); c.moveTo(cx - 60, base); c.lineTo(cx - 34, 70); c.lineTo(cx + 34, 70); c.lineTo(cx + 60, base); c.closePath(); c.fill();
 
-    // The floating cube.
-    const y0 = 118 + Math.sin(t * 1.3) * 5;
+    c.restore();
+    // The floating cube (rising out of the hatch, clipped at the floor line).
+    c.save();
+    if (rise < 1) { c.beginPath(); c.rect(-200, -400, 640, base - 4 + 400); c.clip(); }
+    const y0 = 118 + Math.sin(t * 1.3) * 5 * up + (1 - up) * 210;
     const s = 66;
     const top: [number, number][] = [[cx, y0 - s * 0.62], [cx + s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx - s, y0 - s * 0.05]];
     const left: [number, number][] = [[cx - s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx, y0 + s * 1.5], [cx - s, y0 + s * 0.93]];
@@ -257,6 +314,8 @@ const ART: Record<string, Painter> = {
       c.beginPath(); c.arc(ox, oy, 3, 0, Math.PI * 2); c.fill();
     }
     c.restore();
+    c.restore();
+    if (rise < 1) return;
     // Holo label.
     c.fillStyle = "rgba(9,18,36,0.8)"; c.strokeStyle = "rgba(85,213,233,0.6)"; c.lineWidth = 1.5;
     c.beginPath(); c.roundRect(cx - 62, base + 24, 124, 24, 12); c.fill(); c.stroke();
@@ -634,7 +693,7 @@ const NAT: Record<string, [number, number]> = {
   reactor: [170, 190], battery: [190, 100], inverter: [110, 130], reel: [66, 66], powerdesk: [160, 70], medbed: [160, 110],
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
-  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [240, 300],
+  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [240, 300], datapillar: [56, 140], orbi: [64, 84],
   ltv: [300, 190], drillrig: [160, 200], solarmast: [80, 190], seismo: [130, 80], boulder: [130, 96],
 };
 export const LUNAR_KINDS = new Set(Object.keys(ART));

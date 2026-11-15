@@ -130,6 +130,12 @@ function easeInOut(k: number): number {
 export class NexusView {
   onChange: () => void = () => undefined;
   onWrong: () => void = () => undefined;
+  /** Turning needs a NEXUS key; the screen decides. */
+  canTurn: () => boolean = () => true;
+  onBlocked: () => void = () => undefined;
+  /** A click without a drag: explain that the cube must be turned by hand. */
+  onTap: () => void = () => undefined;
+  private rise = 1;
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -194,6 +200,7 @@ export class NexusView {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.rise = 0;
     this.last = performance.now();
     this.resize();
     requestAnimationFrame((now) => this.loop(now));
@@ -208,6 +215,12 @@ export class NexusView {
   request(move: Move): Result {
     if (this.busy) return "locked";
     if (this.run.isLegal(move)) {
+      if (!this.canTurn()) {
+        this.wobble = 1;
+        this.flash = 1.2;
+        this.onBlocked();
+        return "locked";
+      }
       this.run.play(move);
       const { axis, side } = FACE[move.face];
       this.hints.visible = false;
@@ -226,6 +239,11 @@ export class NexusView {
     }
     this.wobble = 1;
     return "locked";
+  }
+
+  /** Make the suggested arrows flare (used by the explain buttons). */
+  pulse(): void {
+    this.flash = 1.4;
   }
 
   /** Rebuild the suggested-move arrows and show beam counts for the current cube. */
@@ -449,11 +467,9 @@ export class NexusView {
       if (!d || d.id !== e.pointerId) return;
       this.drag = null;
       if (d.mode !== "cube" || d.resolved || !d.cubie) return;
-      // A tap on a glowing layer turns it the suggested way.
-      const pos = d.cubie.position;
-      const move = this.run.legal().find((m) => Math.round(pos.getComponent(FACE[m.face].axis)) === FACE[m.face].side);
-      if (move) this.request(move);
-      else this.wobble = 1;
+      // A tap never turns the cube: you have to grab a layer and turn it by hand.
+      this.flash = 1.2;
+      this.onTap();
     };
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", () => {
@@ -527,7 +543,7 @@ export class NexusView {
     this.renderer.domElement.style.width = `${w}px`;
     this.renderer.domElement.style.height = `${h}px`;
     this.camera.aspect = w / h;
-    this.camera.position.z = 13 * Math.max(1, 1.15 / this.camera.aspect);
+    this.camera.position.z = 14.5 * Math.max(1, 1.15 / this.camera.aspect);
     this.camera.updateProjectionMatrix();
   }
 
@@ -542,7 +558,10 @@ export class NexusView {
     this.wobble = Math.max(0, this.wobble - dt * 2.2);
     this.flash = Math.max(0, this.flash - dt);
     this.root.rotation.set(this.pitch, this.yaw, Math.sin(t * 40) * 0.05 * this.wobble, "XYZ");
-    this.root.position.y = Math.sin(t * 1.3) * 0.08;
+    // The cube rises up into view when the screen opens.
+    this.rise = Math.min(1, this.rise + dt / 1.3);
+    const up = 1 - Math.pow(1 - this.rise, 3);
+    this.root.position.y = Math.sin(t * 1.3) * 0.08 - (1 - up) * 9;
 
     const legal = new Set(this.run.legal().map((m) => m.face));
     for (const c of this.crystals) {
