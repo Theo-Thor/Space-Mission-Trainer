@@ -59,7 +59,39 @@ function pot(c: Ctx, x: number, y: number, s = 1): void {
 }
 
 type Painter = (c: Ctx, p: LP, t: number) => void;
+/** What the NEXUS pedestal shows in the base. The game updates it after each visit. */
+export const nexusPaint = { color: "#55D5E9", solved: false };
+
 const ART: Record<string, Painter> = {
+  // ---------- GRAND HALL: NEXUS pedestal (simple on purpose; the full cube appears on Examine) ----------
+  nexus(c, _p, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2);
+    c.fillStyle = "#16202F"; c.strokeStyle = "#3C4E6A"; c.lineWidth = 3;
+    c.beginPath(); c.ellipse(70, 128, 62, 20, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.strokeStyle = nexusPaint.color; c.globalAlpha = 0.35 + 0.35 * pulse; c.lineWidth = 3;
+    c.beginPath(); c.ellipse(70, 128, 50, 15, 0, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
+    const y = Math.sin(t * 1.4) * 2;
+    const top: [number, number][] = [[70, 18 + y], [112, 42 + y], [70, 66 + y], [28, 42 + y]];
+    const left: [number, number][] = [[28, 42 + y], [70, 66 + y], [70, 112 + y], [28, 88 + y]];
+    const right: [number, number][] = [[70, 66 + y], [112, 42 + y], [112, 88 + y], [70, 112 + y]];
+    const face = (pts: [number, number][], fill: string): void => {
+      c.fillStyle = fill; c.strokeStyle = "#0B1018"; c.lineWidth = 3;
+      c.beginPath(); pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.closePath(); c.fill(); c.stroke();
+      c.lineWidth = 1.5;
+      for (const k of [1 / 3, 2 / 3]) {
+        c.beginPath(); c.moveTo(pts[0][0] + (pts[1][0] - pts[0][0]) * k, pts[0][1] + (pts[1][1] - pts[0][1]) * k);
+        c.lineTo(pts[3][0] + (pts[2][0] - pts[3][0]) * k, pts[3][1] + (pts[2][1] - pts[3][1]) * k); c.stroke();
+        c.beginPath(); c.moveTo(pts[0][0] + (pts[3][0] - pts[0][0]) * k, pts[0][1] + (pts[3][1] - pts[0][1]) * k);
+        c.lineTo(pts[1][0] + (pts[2][0] - pts[1][0]) * k, pts[1][1] + (pts[2][1] - pts[1][1]) * k); c.stroke();
+      }
+    };
+    face(top, "#2A3850"); face(left, "#1A2333"); face(right, "#222D42");
+    const gems: [number, number, string][] = [[70, 42 + y, "#3FD8FF"], [49, 77 + y, "#9B7BFF"], [91, 77 + y, "#FFB547"]];
+    for (const [gx, gy, col] of gems) {
+      c.save(); c.shadowColor = nexusPaint.solved ? col : nexusPaint.color; c.shadowBlur = 10 + 6 * pulse;
+      c.fillStyle = col; c.beginPath(); c.moveTo(gx, gy - 6); c.lineTo(gx + 5, gy); c.lineTo(gx, gy + 6); c.lineTo(gx - 5, gy); c.closePath(); c.fill(); c.restore();
+    }
+  },
   // ---------- SCIENCE LAB ----------
   microscope(c, p) {
     bench(c, p);
@@ -431,7 +463,7 @@ const NAT: Record<string, [number, number]> = {
   reactor: [170, 190], battery: [190, 100], inverter: [110, 130], reel: [66, 66], powerdesk: [160, 70], medbed: [160, 110],
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
-  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95],
+  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [140, 150],
 };
 export const LUNAR_KINDS = new Set(Object.keys(ART));
 export function drawLunarProp(c: Ctx, p: LP, time: number): boolean {

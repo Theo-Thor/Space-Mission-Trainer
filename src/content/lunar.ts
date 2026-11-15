@@ -108,7 +108,7 @@ const NAT: Record<string, [number, number]> = {
   reactor: [170, 190], battery: [190, 100], inverter: [110, 130], reel: [66, 66], powerdesk: [160, 70], medbed: [160, 110],
   medcab: [110, 130], ivstand: [40, 110], scanner: [150, 130], toolwall: [250, 50], workbench: [210, 86], tires: [120, 90],
   charger: [110, 100], crates: [130, 90], o2rack: [110, 130], helmets: [150, 66], dustshower: [90, 130], evabench: [190, 50],
-  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95],
+  extinguisher: [28, 52], firstaid: [44, 40], rover: [210, 95], nexus: [140, 150],
 };
 
 export const lunarProps: LunarProp[] = [];
@@ -121,6 +121,8 @@ function dc(kind: string, x: number, y: number, w: number, h: number, color?: st
   lunarDecals.push({ kind, x, y, w, h, color });
 }
 
+// GRAND HALL: the NEXUS pedestal sits in the middle of the base.
+p("nexus", 1630, 280, 1, { id: "lu-nexus", prompt: "E — Examine NEXUS", radius: 120, ax: 1700, ay: 460 });
 // SCIENCE LAB
 dc("grate", 560, 1010, 360, 110); dc("stripe", 478, 1118, 544, 4, "rgba(85,213,233,0.25)");
 p("freezer", 490, 802); p("microscope", 600, 812); p("centrifuge", 830, 806);

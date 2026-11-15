@@ -1,4 +1,5 @@
 import { Game } from "./game";
+import { NexusScreen } from "./nexus/screen";
 import { Sfx } from "./systems/sfx";
 import { Surface } from "./ui/surface";
 
@@ -140,10 +141,17 @@ declare global {
       voyage: () => void;
       skipVoyage: () => void;
       lunar: () => void;
+      nexus: () => void;
+      nexusPlay: (index?: number) => boolean;
     };
   }
 }
 
+const nexusSection = document.querySelector<HTMLElement>("#nexus");
+if (!nexusSection) throw new Error("Missing #nexus");
+const nexusScreen = new NexusScreen(nexusSection, game.nexus);
+game.onNexus = () => nexusScreen.open(game.nexus);
+nexusScreen.onClose = () => game.closeNexus();
 window.__SELENE__ = {
   teleport: (x, y) => game.teleport(x, y),
   interact: (id) => game.debugInteract(id),
@@ -162,6 +170,19 @@ window.__SELENE__ = {
     game.skipVoyage();
     game.enterLunar();
   },
+  nexus: () => {
+    if (game.snapshot().scene !== "lunar") window.__SELENE__?.lunar();
+    game.teleport(1700, 470);
+    // Input is ignored during the landing fade, so keep trying for a few seconds.
+    let tries = 0;
+    const tryOpen = (): void => {
+      if (nexusScreen.isOpen || tries++ > 40) return;
+      game.debugInteract("lu-nexus");
+      window.setTimeout(tryOpen, 150);
+    };
+    tryOpen();
+  },
+  nexusPlay: (index = 0) => nexusScreen.playSuggested(index),
 };
 
 requestAnimationFrame(frame);

@@ -343,3 +343,37 @@ label { display: block; text-align: left; margin-bottom: 0.4rem; color: #b7c5d4;
 #arrival-crew { margin: 1rem 0 0.4rem; font-weight: 600; }
 #arrival .note { color: #9eb0c2; font-size: 0.88rem; line-height: 1.45; margin: 0.4rem 0 1.2rem; }
 @keyframes arrive { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- NEXUS ---------- */
+#nexus { position: fixed; inset: 0; z-index: 60; background: #081430; color: #e8eff5; overflow: hidden; }
+#nexus-stage { position: absolute; inset: 0; }
+#nexus-stage canvas { display: block; touch-action: none; }
+#nexus .nexus-label { margin: 0; font-size: 0.72rem; letter-spacing: 0.16em; color: #8fa9d6; }
+#nexus .nexus-card, #nexus .nexus-side { position: absolute; top: 1rem; background: rgba(9, 20, 46, 0.82); border: 1px solid rgba(85, 213, 233, 0.35); border-radius: 12px; padding: 0.9rem 1rem; }
+#nexus .nexus-card { left: 1rem; width: min(22rem, calc(100vw - 2rem)); }
+#nexus .nexus-side { right: 1rem; width: 15rem; }
+#nexus-title { margin: 0.35rem 0 0.4rem; font-size: 1.15rem; letter-spacing: 0.04em; }
+#nexus-text { margin: 0 0 0.8rem; line-height: 1.45; }
+#nexus-choices { display: flex; flex-direction: column; gap: 0.5rem; }
+#nexus .nexus-choice { display: flex; align-items: center; gap: 0.55rem; text-align: left; background: rgba(16, 33, 72, 0.9); color: #e8eff5; border: 1px solid var(--c); border-radius: 10px; padding: 0.55rem 0.75rem; font: inherit; font-weight: 700; cursor: pointer; }
+#nexus .nexus-choice:hover { background: rgba(30, 55, 110, 0.95); }
+#nexus .nexus-choice em { margin-left: auto; font-style: normal; font-weight: 400; font-size: 0.72rem; color: var(--c); }
+#nexus-tip { margin: 0.7rem 0 0; font-size: 0.85rem; color: #8fa9d6; transition: color 0.2s; }
+#nexus-tip.nexus-tip-flash { color: var(--amber); }
+#nexus .nexus-swatch { width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); flex: none; }
+#nexus .nexus-meter { display: flex; align-items: center; gap: 0.5rem; margin: 0.55rem 0; font-size: 0.85rem; }
+#nexus .nexus-name { width: 3.6rem; }
+#nexus .nexus-pips { display: flex; gap: 2px; margin-left: auto; }
+#nexus .nexus-pips i { width: 0.45rem; height: 0.7rem; border-radius: 2px; background: #22324a; }
+#nexus .nexus-note { margin: 0.6rem 0 0; font-size: 0.7rem; line-height: 1.4; color: #8fa9d6; }
+#nexus .nexus-help { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%); margin: 0; font-size: 0.8rem; color: #8fa9d6; white-space: nowrap; pointer-events: none; }
+#nexus-leave { position: absolute; right: 1rem; bottom: 1rem; }
+#nexus-end { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 0.6rem; text-align: center; background: rgba(8, 20, 48, 0.72); }
+#nexus-end[hidden] { display: none; }
+#nexus-end h1 { margin: 0; font-size: clamp(4rem, 14vw, 9rem); letter-spacing: 0.08em; color: #fff; text-shadow: 0 0 18px #3fd8ff, 0 0 42px #9b7bff; }
+#nexus-end p { margin: 0; }
+@media (max-width: 760px) {
+  #nexus .nexus-side { top: auto; bottom: 3.6rem; right: 1rem; width: 12rem; padding: 0.6rem 0.8rem; }
+  #nexus .nexus-note, #nexus .nexus-help { display: none; }
+}
+#nexus-leave, #nexus-end-leave { background: rgba(16, 33, 72, 0.9); color: #e8eff5; border: 1px solid rgba(85, 213, 233, 0.55); border-radius: 999px; padding: 0.55rem 1rem; }

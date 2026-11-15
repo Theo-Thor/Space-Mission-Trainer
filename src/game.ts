@@ -5,6 +5,8 @@ import { PILOT_SEAT, RILEY_ENTER, RILEY_SEAT_PATH, RILEY_SPAWN, SHIP_LOOK, SHIP_
 import { LUNAR_RILEY, LUNAR_SPAWN, LUNAR_WORLD, lunarCrew, lunarObstacles, lunarProps, lunarRoomAt, lunarWalkable, NPC_GREETING, onSurface, type LunarProp } from "./content/lunar";
 import { drawStars, drawWorld, type PaintActor } from "./render/draw";
 import { drawVoyage } from "./render/voyage-art";
+import { nexusPaint } from "./render/lunar-art";
+import { NEEDS, NexusRun, TOTAL_TURNS } from "./nexus/cube";
 import { CUES, VOYAGE_DURATION } from "./content/voyage";
 import { Dialogue } from "./systems/dialogue";
 import { Mission } from "./systems/mission";
@@ -106,6 +108,10 @@ export class Game {
   private rileyIndex = 0;
   private rileyShip: "facility" | "hold" | "enter" | "wait" | "seat" | "seated" = "facility";
   private scene: "facility" | "ship" | "voyage" | "lunar" = "facility";
+  /** The colony's NEXUS cube. It keeps its state between visits. */
+  readonly nexus = new NexusRun();
+  nexusOpen = false;
+  onNexus: () => void = () => undefined;
   private voyageT = 0;
   private voyageCue = 0;
   private voyageDone = false;
@@ -748,19 +754,26 @@ export class Game {
     this.banner = 3.4;
     this.hint = 8;
     this.intro = 0;
-    this.ui.setObjective("Explore Selene Base");
-    this.ui.pushToast("OBJECTIVE UPDATED", "Explore Selene Base");
+    this.ui.setObjective("Examine NEXUS in the Grand Hall");
+    this.ui.pushToast("OBJECTIVE UPDATED", "Examine NEXUS in the Grand Hall");
     this.shipFade = 0.9;
     this.ui.setFade(1);
     this.placeCamera(0);
   }
 
   private handleLunarInteract(id: string): void {
+    if (id === "lu-nexus") {
+      this.nexusOpen = true;
+      this.ui.hideInspect();
+      this.sfx.blip();
+      this.onNexus();
+      return;
+    }
     const actor = this.people().find((item) => item.id === id);
     if (actor) {
       faceToward(actor, this.player);
       const speaker = actor.id === "riley" ? "Riley Morgan" : actor.label;
-      this.dialogue.play({ id: `LUNAR_HELLO_${actor.id}`, lines: [{ speaker, text: NPC_GREETING }] }, this.mission.playerName, () => undefined);
+      this.dialogue.play({ id: `LUNAR_HELLO_${actor.id}`, lines: [{ speaker, text: this.lunarLine() }] }, this.mission.playerName, () => undefined);
       this.syncDialogue();
       this.ui.hideInspect();
       this.sfx.blip();
@@ -906,8 +919,33 @@ export class Game {
     return this.actors;
   }
 
+  /** Called when the player leaves the NEXUS screen: the base reflects the cube. */
+  closeNexus(): void {
+    this.nexusOpen = false;
+    const run = this.nexus;
+    nexusPaint.solved = run.done;
+    nexusPaint.color = run.done ? "#FFFFFF" : NEEDS[run.lowest()].color;
+    if (run.done) {
+      this.ui.setObjective("Selene Base is ready");
+      this.ui.pushToast("NEXUS COMPLETE", "2048 · Every need is full.");
+    } else if (run.turns > 0) {
+      const low = NEEDS[run.lowest()].name;
+      this.ui.setObjective(`NEXUS: turn ${run.turns + 1} of ${TOTAL_TURNS}`);
+      this.ui.pushToast("COLONY UPDATE", `${low} is the lowest need right now.`);
+    }
+  }
+
+  /** What the Moon crew say depends on the cube. */
+  private lunarLine(): string {
+    const run = this.nexus;
+    if (run.done) return "Every need is full. You did it, {playerName}!";
+    if (run.turns === 0) return `${NPC_GREETING} Have you seen NEXUS in the Grand Hall?`;
+    const low = NEEDS[run.lowest()].name.toLowerCase();
+    return `Our ${low} is running low. NEXUS can help — ${TOTAL_TURNS - run.turns} turns to go.`;
+  }
+
   private isLocked(): boolean {
-    return this.dialogue.isOpen || this.suitActive || this.boardActive || this.flightActive || this.seatActive || this.seated || this.shipFade > 0 || this.commsBeat === "ask" || this.commsBeat === "reply" || this.commsBeat === "copy";
+    return this.nexusOpen || this.dialogue.isOpen || this.suitActive || this.boardActive || this.flightActive || this.seatActive || this.seated || this.shipFade > 0 || this.commsBeat === "ask" || this.commsBeat === "reply" || this.commsBeat === "copy";
   }
 
   private actor(id: string): Actor {

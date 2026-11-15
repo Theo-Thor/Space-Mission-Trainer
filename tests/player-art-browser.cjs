@@ -171,6 +171,23 @@ async function main() {
     await talk('hatch','NEED_BOARDING');
     await until('window.__SELENE__.snapshot().phase === "NEED_FLIGHT_SYSTEMS" && window.__SELENE__.snapshot().scene === "ship"','Spacecraft interior did not load');
 
+    // NEXUS: open from the Grand Hall, play 11 turns, leave, and see the base react.
+    await evaluate('window.__SELENE__.nexus()');
+    await until('!document.querySelector("#nexus").hidden','NEXUS did not open',8000);
+    await screenshot('nexus-open');
+    for (let i = 0; i < 11; i++) {
+      const before = await evaluate('document.querySelector("#nexus-turn").textContent');
+      await until(`window.__SELENE__.nexusPlay(${i % 2}) || window.__SELENE__.nexusPlay(0)`,`NEXUS turn ${i + 1} refused`);
+      await until(`document.querySelector("#nexus-turn").textContent !== ${JSON.stringify(before)}`,`NEXUS turn ${i + 1} did not finish`);
+    }
+    await until('!document.querySelector("#nexus-end").hidden','2048 ending did not appear');
+    await screenshot('nexus-2048');
+    await evaluate('document.querySelector("#nexus-end-leave").click()');
+    await until('document.querySelector("#nexus").hidden && document.querySelector("#objective").innerText.includes("Selene Base is ready")','Base did not react to the solved cube');
+    await evaluate('window.__SELENE__.teleport(705,1010); window.__SELENE__.interact("jun")');
+    await until('(window.__SELENE__.advance(), String(window.__SELENE__.snapshot().line).includes("Every need is full"))','Crew line did not change after NEXUS');
+    console.log('NEXUS: opened, 11 turns, 2048 ending, base and crew reacted.');
+
     // One broken frame must not crash the renderer or prevent keyboard movement.
     await send('Fetch.enable',{patterns:[{urlPattern:'*uniform-front.png',requestStage:'Request'}]});
     await send('Page.reload',{ignoreCache:true});
