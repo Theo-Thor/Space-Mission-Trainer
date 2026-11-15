@@ -277,7 +277,9 @@ export function lunarWalkable(): Rect[] {
 }
 
 export function lunarObstacles(): Rect[] {
-  const solid: Rect[] = lunarProps.filter((prop) => prop.blocks).map(({ x, y, w, h }) => ({ x, y, w, h }));
+  // NEXUS floats: only the platform base blocks walking, not the whole hologram.
+  const solid: Rect[] = lunarProps.filter((prop) => prop.blocks).map(({ id, x, y, w, h }) =>
+    id === "lu-nexus" ? { x: x + 40, y: y + 236, w: w - 80, h: 50 } : { x, y, w, h });
   // The shadowed crater is a hole, not a floor: keep players on its rim.
   solid.push({ x: CRATER.x - CRATER.rx + 30, y: CRATER.y - CRATER.ry + 8, w: CRATER.rx * 2 - 60, h: CRATER.ry * 2 - 16 });
   for (const c of SURFACE_CRATERS) solid.push({ x: c.x - c.rx * 0.8, y: c.y - c.ry * 0.7, w: c.rx * 1.6, h: c.ry * 1.4 });

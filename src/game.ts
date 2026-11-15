@@ -875,6 +875,8 @@ export class Game {
       if (!prop.prompt || !prop.radius) continue;
       if (prop.id === "radio" && this.mission.radioAcquired) continue;
       if (prop.id === "suit" && this.mission.suitEquipped) continue;
+      // NEXUS can only be examined once it has risen; its bubble floats above the cube, not over the crystals.
+      if (prop.id === "lu-nexus" && nexusPaint.rise < 1) continue;
       const anchor = propAnchor(prop as PropDef);
       const dist = Math.hypot(anchor.x - this.player.x, anchor.y - this.player.y);
       if (dist > prop.radius) continue;
@@ -883,8 +885,9 @@ export class Game {
           id: prop.id,
           x: anchor.x,
           y: anchor.y,
-          promptX: prop.x + prop.w / 2,
-          promptY: prop.y,
+          // NEXUS: bubble to the left of the platform so it never covers the cube or its crystals.
+          promptX: prop.id === "lu-nexus" ? prop.x - 30 : prop.x + prop.w / 2,
+          promptY: prop.id === "lu-nexus" ? prop.y + 236 : prop.y,
           radius: prop.radius,
           prompt: prop.prompt,
           dist,
@@ -992,7 +995,7 @@ export class Game {
     const here = lunarRoomAt(this.player.x, this.player.y).id === "lu-hall";
     if (here && !this.inHall) {
       this.hallVisits += 1;
-      this.riseTime = this.hallVisits === 1 ? 3.2 : 1;
+      this.riseTime = this.hallVisits === 1 ? 4.2 : 1.4;
       nexusPaint.rise = 0;
       if (this.hallVisits === 1) {
         this.radio.enqueue({ id: "ORBI-HELLO", sender: "ORBI", text: "Beep! Hi, I'm ORBI. Welcome to the NEXUS chamber. Watch: the cube is waking up!" });

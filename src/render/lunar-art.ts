@@ -204,118 +204,208 @@ const ART: Record<string, Painter> = {
     for (const [x, y, r] of [[40, 40, 8], [78, 52, 6], [62, 28, 4], [92, 66, 5]] as const) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
     line(c, [74, 10, 108, 26, 120, 54], "rgba(235,240,245,0.6)", 2.5);
   },
-  // ---------- GRAND HALL: NEXUS (a smaller echo of the 3D cube: metal, crystal cores, beams) ----------
+  // ---------- GRAND HALL: NEXUS (three layers that turn, rise and lock together) ----------
   nexus(c, _p, t) {
-    const rise = Math.max(0, Math.min(1, nexusPaint.rise));
-    const up = 1 - Math.pow(1 - rise, 3);
     const NEED = ["#FFB547", "#FF6FA8", "#3FD8FF", "#D6ECFF", "#9B7BFF", "#5BE38C"];
-    const pulse = 0.5 + 0.5 * Math.sin(t * 2);
+    const r = Math.max(0, Math.min(1, nexusPaint.rise));
+    const seg = (a: number, b: number): number => Math.max(0, Math.min(1, (r - a) / (b - a)));
+    const ease = (k: number): number => 1 - Math.pow(1 - k, 3);
     const cx = 120;
     const base = 262;
-    // Platform: dark disc, rotating dashed ring, six need-coloured nodes.
+    const warn = seg(0, 0.14);       // hazard ring flashes
+    const iris = ease(seg(0.1, 0.3)); // floor iris opens
+    const lift = seg(0.24, 0.8);      // layers rise
+    const lock = seg(0.78, 0.86);     // layers lock together
+    const ignite = seg(0.84, 1);      // crystals ignite one by one
+    const settled = r >= 1;
+
+    // Ground shake while the cube pushes up.
+    const shake = lift > 0 && lift < 1 ? 1.4 * Math.sin(t * 70) : 0;
+    c.save();
+    c.translate(shake, 0);
+
+    // ----- platform -----
     c.fillStyle = "#121A27"; c.strokeStyle = "#3C4E6A"; c.lineWidth = 3;
     c.beginPath(); c.ellipse(cx, base, 116, 34, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-    c.save(); c.strokeStyle = nexusPaint.color; c.globalAlpha = 0.55 + 0.3 * pulse; c.lineWidth = 3;
-    c.setLineDash([18, 10]); c.lineDashOffset = -t * 30;
+    if (warn > 0 && warn < 1) {
+      c.strokeStyle = Math.sin(t * 22) > 0 ? "#F0A84B" : "rgba(240,168,75,0.25)"; c.lineWidth = 5;
+      c.beginPath(); c.ellipse(cx, base, 108, 31, 0, 0, Math.PI * 2); c.stroke();
+    }
+    c.save(); c.strokeStyle = nexusPaint.color; c.globalAlpha = (0.35 + 0.3 * Math.sin(t * 2)) * (0.3 + 0.7 * ignite + (settled ? 0.3 : 0)); c.lineWidth = 3;
+    c.setLineDash([18, 10]); c.lineDashOffset = -t * (30 + 90 * (1 - ignite));
     c.beginPath(); c.ellipse(cx, base, 96, 27, 0, 0, Math.PI * 2); c.stroke(); c.restore();
     NEED.forEach((col, i) => {
+      const lit = Math.max(0, Math.min(1, r * 9 - i * 0.35));
       const a = (i / 6) * Math.PI * 2 + t * 0.4;
-      const nx = cx + Math.cos(a) * 96;
-      const ny = base + Math.sin(a) * 27;
-      c.save(); c.shadowColor = col; c.shadowBlur = 10; c.fillStyle = col;
-      c.beginPath(); c.arc(nx, ny, 4.5, 0, Math.PI * 2); c.fill(); c.restore();
+      c.save(); c.globalAlpha = 0.25 + 0.75 * lit; c.shadowColor = col; c.shadowBlur = 12 * lit; c.fillStyle = col;
+      c.beginPath(); c.arc(cx + Math.cos(a) * 96, base + Math.sin(a) * 27, 4.5 + lit, 0, Math.PI * 2); c.fill(); c.restore();
     });
-    if (rise < 1) {
-      // The floor hatch slides open under the cube.
-      const open = Math.min(1, rise * 4);
-      c.fillStyle = "#03060B";
-      c.beginPath(); c.ellipse(cx, base - 4, 70 * open, 20 * open, 0, 0, Math.PI * 2); c.fill();
-      c.strokeStyle = "rgba(85,213,233,0.8)"; c.lineWidth = 2;
-      c.beginPath(); c.ellipse(cx, base - 4, 70 * open, 20 * open, 0, 0, Math.PI * 2); c.stroke();
-      for (let i = 0; i < 14; i++) {
-        const a = (i / 14) * Math.PI * 2 + t;
-        const r = 60 + ((t * 80 + i * 13) % 50);
-        c.fillStyle = `rgba(170,180,195,${0.5 * (1 - rise)})`;
-        c.fillRect(cx + Math.cos(a) * r, base - 6 + Math.sin(a) * r * 0.3 - ((t * 60 + i * 7) % 30), 3, 3);
+    // Idle ripple on the floor, and the lock shockwave.
+    if (settled) {
+      const k = (t / 2.6) % 1;
+      c.strokeStyle = `rgba(85,213,233,${0.4 * (1 - k)})`; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(cx, base, 100 + k * 70, 29 + k * 20, 0, 0, Math.PI * 2); c.stroke();
+    }
+    if (ignite > 0 && ignite < 1) {
+      c.strokeStyle = `rgba(255,255,255,${0.7 * (1 - ignite)})`; c.lineWidth = 4;
+      c.beginPath(); c.ellipse(cx, base, 90 + ignite * 120, 26 + ignite * 34, 0, 0, Math.PI * 2); c.stroke();
+    }
+    // Iris hatch: eight petals spiral open.
+    if (r < 1) {
+      c.save(); c.translate(cx, base - 4); c.scale(1, 0.29);
+      c.fillStyle = "#03060B"; c.beginPath(); c.arc(0, 0, 74 * Math.max(iris, 0.02), 0, Math.PI * 2); c.fill();
+      for (let i = 0; i < 8; i++) {
+        const a0 = (i / 8) * Math.PI * 2 + iris * 0.9;
+        const reach = 74 * (1 - iris);
+        c.fillStyle = i % 2 ? "#2A3850" : "#22304A"; c.strokeStyle = "rgba(85,213,233,0.6)"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(Math.cos(a0) * 74, Math.sin(a0) * 74);
+        c.lineTo(Math.cos(a0 + 0.95) * 74, Math.sin(a0 + 0.95) * 74);
+        c.lineTo(Math.cos(a0 + 0.5) * (74 - reach), Math.sin(a0 + 0.5) * (74 - reach));
+        c.closePath(); c.fill(); c.stroke();
+      }
+      c.restore();
+      for (let i = 0; i < 18 && lift > 0; i++) {
+        const a = (i / 18) * Math.PI * 2 + t * 1.5;
+        const rr2 = 50 + ((t * 90 + i * 17) % 60);
+        c.fillStyle = `rgba(170,180,195,${0.6 * (1 - lift)})`;
+        c.fillRect(cx + Math.cos(a) * rr2, base - 4 + Math.sin(a) * rr2 * 0.3 - ((t * 70 + i * 9) % 36), 3, 3);
       }
     }
-    c.save();
-    c.globalAlpha = 0.25 + 0.75 * up;
-    // Light column from the platform up to the cube.
-    const col = c.createLinearGradient(0, base, 0, 70);
-    col.addColorStop(0, "rgba(85,213,233,0.38)"); col.addColorStop(1, "rgba(85,213,233,0)");
-    c.fillStyle = col; c.beginPath(); c.moveTo(cx - 60, base); c.lineTo(cx - 34, 70); c.lineTo(cx + 34, 70); c.lineTo(cx + 60, base); c.closePath(); c.fill();
 
-    c.restore();
-    // The floating cube (rising out of the hatch, clipped at the floor line).
-    c.save();
-    if (rise < 1) { c.beginPath(); c.rect(-200, -400, 640, base - 4 + 400); c.clip(); }
-    const y0 = 118 + Math.sin(t * 1.3) * 5 * up + (1 - up) * 210;
+    // ----- light column and data sparks spiralling up -----
+    const y0 = 118 + (settled ? Math.sin(t * 1.3) * 5 : 0);
     const s = 66;
-    const top: [number, number][] = [[cx, y0 - s * 0.62], [cx + s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx - s, y0 - s * 0.05]];
-    const left: [number, number][] = [[cx - s, y0 - s * 0.05], [cx, y0 + s * 0.52], [cx, y0 + s * 1.5], [cx - s, y0 + s * 0.93]];
-    const right: [number, number][] = [[cx, y0 + s * 0.52], [cx + s, y0 - s * 0.05], [cx + s, y0 + s * 0.93], [cx, y0 + s * 1.5]];
-    // Orbit ring behind the cube.
-    c.save(); c.strokeStyle = "rgba(120,160,255,0.35)"; c.lineWidth = 1.5;
-    c.beginPath(); c.ellipse(cx, y0 + 40, 112, 30, -0.18, Math.PI, Math.PI * 2); c.stroke(); c.restore();
-    const lerp = (a: [number, number], b: [number, number], k: number): [number, number] => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
-    const face = (pts: [number, number][], fill: CanvasGradient | string): void => {
-      c.fillStyle = fill; c.strokeStyle = "#070B12"; c.lineWidth = 3;
-      c.beginPath(); pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.closePath(); c.fill(); c.stroke();
-      // 3×3 pieces: dark seams and a lit top edge on each piece.
-      c.lineWidth = 2.2; c.strokeStyle = "#070B12";
-      for (const k of [1 / 3, 2 / 3]) {
-        const a1 = lerp(pts[0], pts[1], k), b1 = lerp(pts[3], pts[2], k);
-        const a2 = lerp(pts[0], pts[3], k), b2 = lerp(pts[1], pts[2], k);
-        c.beginPath(); c.moveTo(a1[0], a1[1]); c.lineTo(b1[0], b1[1]); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke();
+    const topY = y0 - s * 0.05;
+    const H = s * 0.98;
+    const glowA = 0.15 + 0.35 * iris + 0.2 * ignite;
+    const col = c.createLinearGradient(0, base, 0, topY - 40);
+    col.addColorStop(0, `rgba(85,213,233,${glowA})`); col.addColorStop(1, "rgba(85,213,233,0)");
+    c.fillStyle = col; c.beginPath(); c.moveTo(cx - 62, base); c.lineTo(cx - 30, topY - 40); c.lineTo(cx + 30, topY - 40); c.lineTo(cx + 62, base); c.closePath(); c.fill();
+    if (ignite > 0) {
+      for (let i = 0; i < 18; i++) {
+        const k = (t * 0.35 + i / 18) % 1;
+        const a = (i / 18) * Math.PI * 2 + k * 5;
+        const rad = 96 * (1 - k);
+        c.save(); c.globalAlpha = Math.sin(k * Math.PI) * ignite; c.fillStyle = NEED[i % 6]; c.shadowColor = NEED[i % 6]; c.shadowBlur = 8;
+        c.beginPath(); c.arc(cx + Math.cos(a) * rad, base + Math.sin(a) * rad * 0.28 - k * (base - topY - 30), 2.3, 0, Math.PI * 2); c.fill(); c.restore();
       }
-      c.fillStyle = "rgba(94,116,153,0.55)";
+    }
+
+    // ----- the three layers -----
+    type P = [number, number];
+    const rhombus = (yt: number, dx: number): P[] => [[cx + dx, yt - s * 0.57], [cx + s + dx, yt], [cx + dx, yt + s * 0.57], [cx - s + dx, yt]];
+    const lerp = (a: P, b: P, k: number): P => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+    const poly = (pts: P[], fill: string | CanvasGradient): void => {
+      c.fillStyle = fill; c.strokeStyle = "#070B12"; c.lineWidth = 2.6;
+      c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.fill(); c.stroke();
+    };
+    const seams = (pts: P[], grid: boolean): void => {
+      c.strokeStyle = "#070B12"; c.lineWidth = 2;
+      for (const k of [1 / 3, 2 / 3]) {
+        const a = lerp(pts[0], pts[1], k), b = lerp(pts[3], pts[2], k);
+        c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+        if (grid) { const a2 = lerp(pts[0], pts[3], k), b2 = lerp(pts[1], pts[2], k); c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
+      }
+      c.fillStyle = "rgba(94,116,153,0.6)";
       for (let i = 0; i < 9; i++) {
-        const u = (i % 3) / 3 + 0.08, v = Math.floor(i / 3) / 3 + 0.12;
-        const pa = lerp(lerp(pts[0], pts[1], u), lerp(pts[3], pts[2], u), v);
-        c.fillRect(pa[0] - 1, pa[1] - 1, 3, 3);
+        const u = (i % 3) / 3 + 0.1, v = Math.floor(i / 3) / 3 + 0.14;
+        const q = lerp(lerp(pts[0], pts[1], u), lerp(pts[3], pts[2], u), v);
+        c.fillRect(q[0] - 1, q[1] - 1, 3, grid ? 3 : 2);
       }
     };
-    const tg = c.createLinearGradient(cx - s, y0 - s * 0.6, cx + s, y0 + s * 0.5); tg.addColorStop(0, "#2C3A52"); tg.addColorStop(1, "#1A2334");
-    const lg = c.createLinearGradient(cx - s, 0, cx, 0); lg.addColorStop(0, "#151D2B"); lg.addColorStop(1, "#1E293B");
-    const rg = c.createLinearGradient(cx, 0, cx + s, 0); rg.addColorStop(0, "#243048"); rg.addColorStop(1, "#33425E");
-    face(top, tg); face(left, lg); face(right, rg);
-    // Glowing edges.
-    c.save(); c.strokeStyle = `rgba(120,200,255,${0.35 + 0.25 * pulse})`; c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(top[3][0], top[3][1]); c.lineTo(top[0][0], top[0][1]); c.lineTo(top[1][0], top[1][1]);
-    c.moveTo(top[2][0], top[2][1]); c.lineTo(right[3][0], right[3][1]); c.stroke(); c.restore();
-    // Crystal cores in the face centres, with beams in their colours.
-    const centre = (pts: [number, number][]): [number, number] => lerp(lerp(pts[0], pts[1], 0.5), lerp(pts[3], pts[2], 0.5), 0.5);
-    const cores: [[number, number], string, number][] = [[centre(top), "#3FD8FF", -Math.PI / 2], [centre(left), "#9B7BFF", Math.PI * 0.8], [centre(right), "#FFB547", Math.PI * 0.2]];
-    for (const [[gx, gy], colr, dir] of cores) {
-      const glow = colr;
+    // Idle: every few seconds one layer turns a little and snaps back, its seam glowing in a need colour.
+    const cycle = Math.floor(t / 4.5);
+    const phase = (t % 4.5) / 1.3;
+    const turning = settled && phase < 1 ? cycle % 3 : -1;
+    const turnDx = turning >= 0 ? Math.sin(Math.PI * phase) * 16 * (cycle % 2 ? 1 : -1) : 0;
+    const seamColor = NEED[cycle % 6];
+    const sideTop = c.createLinearGradient(cx - s, 0, cx + s, 0);
+    sideTop.addColorStop(0, "#2C3A52"); sideTop.addColorStop(1, "#1A2334");
+    const leftG = c.createLinearGradient(cx - s, 0, cx, 0); leftG.addColorStop(0, "#151D2B"); leftG.addColorStop(1, "#1E293B");
+    const rightG = c.createLinearGradient(cx, 0, cx + s, 0); rightG.addColorStop(0, "#243048"); rightG.addColorStop(1, "#33425E");
+    const faces: { left: P[]; right: P[]; top: P[] }[] = [];
+
+    c.save();
+    if (r < 1) { c.beginPath(); c.rect(-200, -400, 640, base - 4 + 400); c.clip(); }
+    for (let i = 0; i < 3; i++) {
+      // i = 0 bottom, 2 top. While rising the layers spread apart and twist, then lock.
+      const spread = Math.sin(Math.PI * Math.min(1, lift)) * (1 - lock) * (i * 16);
+      const twist = Math.sin(Math.PI * 2 * lift) * (1 - lock) * (i - 1) * 14;
+      const rise = (1 - ease(lift)) * (250 + i * 30);
+      const dx = twist + (turning === i ? turnDx : 0);
+      const yt = topY + (2 - i) * (H / 3) - spread + rise;
+      const top = rhombus(yt, dx);
+      const h = H / 3;
+      const left: P[] = [top[3], top[2], [top[2][0], top[2][1] + h], [top[3][0], top[3][1] + h]];
+      const right: P[] = [top[2], top[1], [top[1][0], top[1][1] + h], [top[2][0], top[2][1] + h]];
+      poly(left, leftG); seams(left, false);
+      poly(right, rightG); seams(right, false);
+      poly(top, sideTop); seams(top, true);
+      if (turning === i) {
+        c.save(); c.strokeStyle = seamColor; c.shadowColor = seamColor; c.shadowBlur = 12; c.lineWidth = 2.5;
+        c.beginPath(); c.moveTo(left[3][0], left[3][1]); c.lineTo(left[2][0], left[2][1]); c.lineTo(right[2][0], right[2][1]); c.stroke(); c.restore();
+      }
+      faces.push({ left, right, top });
+    }
+    // Lock flash where the layers meet.
+    if (lock > 0 && lock < 1) {
+      c.save(); c.globalAlpha = Math.sin(Math.PI * lock); c.strokeStyle = "#FFFFFF"; c.shadowColor = "#55D5E9"; c.shadowBlur = 18; c.lineWidth = 3;
+      for (const f of faces.slice(0, 2)) { c.beginPath(); c.moveTo(f.top[3][0], f.top[3][1]); c.lineTo(f.top[2][0], f.top[2][1]); c.lineTo(f.top[1][0], f.top[1][1]); c.stroke(); }
+      c.restore();
+    }
+    // Scan line sweeping down the side faces.
+    if (settled) {
+      const k = (t * 0.45) % 1;
+      const sy = topY + k * H;
+      c.save(); c.strokeStyle = `rgba(120,220,255,${0.5 * Math.sin(Math.PI * k)})`; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(cx - s, sy); c.lineTo(cx, sy + s * 0.57); c.lineTo(cx + s, sy); c.stroke(); c.restore();
+    }
+    // Glowing outer edges.
+    const topFace = faces[2].top;
+    c.save(); c.strokeStyle = `rgba(120,200,255,${(0.3 + 0.25 * Math.sin(t * 2)) * (0.4 + 0.6 * ignite)})`; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(topFace[3][0], topFace[3][1]); c.lineTo(topFace[0][0], topFace[0][1]); c.lineTo(topFace[1][0], topFace[1][1]); c.stroke(); c.restore();
+
+    // ----- crystal cores ignite one by one, beams reach out -----
+    const centre = (pts: P[]): P => lerp(lerp(pts[0], pts[1], 0.5), lerp(pts[3], pts[2], 0.5), 0.5);
+    const cores: [P, string, number][] = [[centre(faces[2].top), "#3FD8FF", -Math.PI / 2], [centre(faces[1].left), "#9B7BFF", Math.PI * 0.8], [centre(faces[1].right), "#FFB547", Math.PI * 0.2]];
+    cores.forEach(([[gx, gy], colr, dir], n) => {
+      const on = settled ? 1 : Math.max(0, Math.min(1, ignite * 3 - n));
+      if (on <= 0) return;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2 + n);
       for (let i = 0; i < 4; i++) {
         const a = dir + (i - 1.5) * 0.28;
-        const len = 70 + i * 14;
-        c.save(); c.strokeStyle = glow; c.globalAlpha = 0.25 + 0.2 * Math.sin(t * 2 + i); c.lineWidth = 1.4;
+        const len = (70 + i * 14) * on;
+        c.save(); c.strokeStyle = colr; c.globalAlpha = (0.25 + 0.2 * Math.sin(t * 2 + i)) * on; c.lineWidth = 1.4;
         c.beginPath(); c.moveTo(gx, gy); c.quadraticCurveTo(gx + Math.cos(a) * len * 0.5, gy + Math.sin(a) * len * 0.3 - 10, gx + Math.cos(a) * len, gy + Math.sin(a) * len * 0.6); c.stroke();
         const k = (t * 0.5 + i * 0.25) % 1;
-        c.globalAlpha = Math.sin(k * Math.PI); c.fillStyle = glow;
+        c.globalAlpha = Math.sin(k * Math.PI) * on; c.fillStyle = colr;
         c.beginPath(); c.arc(gx + Math.cos(a) * len * k, gy + Math.sin(a) * len * 0.6 * k, 2.2, 0, Math.PI * 2); c.fill(); c.restore();
       }
-      c.save(); c.shadowColor = glow; c.shadowBlur = 14 + 8 * pulse; c.fillStyle = glow;
-      c.beginPath(); c.moveTo(gx, gy - 11); c.lineTo(gx + 8, gy); c.lineTo(gx, gy + 11); c.lineTo(gx - 8, gy); c.closePath(); c.fill();
-      c.fillStyle = "rgba(255,255,255,0.75)"; c.beginPath(); c.moveTo(gx, gy - 7); c.lineTo(gx + 3, gy); c.lineTo(gx, gy - 1); c.closePath(); c.fill(); c.restore();
-      c.strokeStyle = glow; c.globalAlpha = 0.7; c.lineWidth = 1.2; c.beginPath(); c.arc(gx, gy, 15, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
-    }
-    // Front half of the orbit ring with travelling sparks.
-    c.save(); c.strokeStyle = "rgba(120,160,255,0.45)"; c.lineWidth = 1.5;
-    c.beginPath(); c.ellipse(cx, y0 + 40, 112, 30, -0.18, 0, Math.PI); c.stroke();
-    for (let i = 0; i < 3; i++) {
-      const a = t * 0.9 + (i * Math.PI * 2) / 3;
-      const ox = cx + Math.cos(a) * 112 * Math.cos(-0.18) - Math.sin(a) * 30 * Math.sin(-0.18);
-      const oy = y0 + 40 + Math.cos(a) * 112 * Math.sin(-0.18) + Math.sin(a) * 30 * Math.cos(-0.18);
-      c.fillStyle = NEED[(i * 2) % 6]; c.shadowColor = c.fillStyle; c.shadowBlur = 8;
-      c.beginPath(); c.arc(ox, oy, 3, 0, Math.PI * 2); c.fill();
+      c.save(); c.globalAlpha = on; c.shadowColor = colr; c.shadowBlur = 14 + 8 * pulse + (1 - on) * 30; c.fillStyle = colr;
+      c.translate(gx, gy); c.rotate(Math.sin(t * 1.4 + n) * 0.25);
+      c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 0); c.lineTo(0, 11); c.lineTo(-8, 0); c.closePath(); c.fill();
+      c.fillStyle = "rgba(255,255,255,0.75)"; c.beginPath(); c.moveTo(0, -7); c.lineTo(3, 0); c.lineTo(0, -1); c.closePath(); c.fill(); c.restore();
+      if (on < 1) { c.strokeStyle = `rgba(255,255,255,${1 - on})`; c.lineWidth = 2; c.beginPath(); c.arc(gx, gy, 10 + on * 26, 0, Math.PI * 2); c.stroke(); }
+      c.strokeStyle = colr; c.globalAlpha = 0.7 * on; c.lineWidth = 1.2; c.beginPath(); c.arc(gx, gy, 15, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
+    });
+    c.restore();
+
+    // ----- holo-rings spinning around the cube -----
+    if (ignite > 0) {
+      for (const [tilt, speed, ry, colr] of [[-0.18, 1, 30, "rgba(120,160,255,0.5)"], [0.32, -1.6, 22, "rgba(85,213,233,0.45)"]] as const) {
+        c.save(); c.globalAlpha = ignite; c.translate(cx, y0 + 40); c.rotate(tilt);
+        c.strokeStyle = colr; c.lineWidth = 1.6; c.setLineDash([26, 14]); c.lineDashOffset = t * 40 * speed;
+        c.beginPath(); c.ellipse(0, 0, 116, ry, 0, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+        for (let i = 0; i < 3; i++) {
+          const a = t * 0.9 * speed + (i * Math.PI * 2) / 3;
+          c.fillStyle = NEED[(i * 2 + (speed > 0 ? 0 : 1)) % 6]; c.shadowColor = c.fillStyle; c.shadowBlur = 8;
+          c.beginPath(); c.arc(Math.cos(a) * 116, Math.sin(a) * ry, 3, 0, Math.PI * 2); c.fill();
+        }
+        c.restore();
+      }
     }
     c.restore();
-    c.restore();
-    if (rise < 1) return;
+    if (!settled) return;
     // Holo label.
     c.fillStyle = "rgba(9,18,36,0.8)"; c.strokeStyle = "rgba(85,213,233,0.6)"; c.lineWidth = 1.5;
     c.beginPath(); c.roundRect(cx - 62, base + 24, 124, 24, 12); c.fill(); c.stroke();

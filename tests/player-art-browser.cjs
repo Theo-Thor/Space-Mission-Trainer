@@ -186,8 +186,9 @@ async function main() {
     await screenshot('surface-key');
     // The cube rises out of the floor in the Grand Hall.
     await evaluate('window.__SELENE__.teleport(1700,600)');
-    await delay(1200); await screenshot('nexus-rising');
-    await delay(2600); await screenshot('nexus-pedestal');
+    for (const [ms, name] of [[350, 'rise-1-warning'], [700, 'rise-2-iris'], [800, 'rise-3-lifting'], [800, 'rise-4-lock'], [700, 'rise-5-ignite'], [1400, 'nexus-pedestal'], [2200, 'nexus-idle-turn']]) {
+      await delay(ms); await screenshot(name);
+    }
     await evaluate('window.__SELENE__.nexus()');
     await until('!document.querySelector("#nexus").hidden','NEXUS did not open',8000);
     await delay(1500); await screenshot('nexus-open');
